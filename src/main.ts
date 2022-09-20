@@ -21,10 +21,63 @@ gameLoop(1, {
   air: 100,
   food: 100,
   credits: 1000,
-  dockRings: [{ vessel: "Shoyu B-9" }, { vessel: "" }],
+  dockRings: [{ 
+    vessel: {
+    name: "Shoyu Z1",
+    class: "Station Crew Transport",
+    faction: "New Hague Merchants",
+    generatesAir: 0,
+    generatesPower: 1,
+    generatesFood: 0,
+    tradesAir: 0,
+    tradesPower: 0,
+    tradesFood: 0,
+    tradesAirForCredits: 0,
+    tradesPowerForCredits: 0,
+    tradesFoodForCredits: 0,
+    morale: 0,
+    queueTolerance: 1,
+    dockingDaysRequested: 10,
+    dockingFeePriceElasticity: .5,
+    timeInQueue: 0,
+  } }, {  }],
+  vesselQueue: [],
   funding: 10,
   crewSalary: 2,
   daysWithoutFood: 0,
+  belongsToFaction: "New Hague Merchants",
+  factions: [
+    {
+        name: "New Hague Merchants",
+        description: "Interstellar trade guild",
+        favor: 10,
+        hexColor: 'F5A623',
+    },
+    {
+        name: "Elythorum Cabal",
+        description: "Mysterious aliens",
+        favor: 0,
+        hexColor: '3EE766',
+    },
+    {
+        name: "Space Freighter Union",
+        description: "Union of independent space freighters",
+        favor: 10,
+        hexColor: '3E76E7',
+    },
+    {
+        name: "Earth Defense Cabinet",
+        description: "Military space defense administration",
+        favor: 10,
+        hexColor: '2CB36F',
+    },
+    { 
+        name: "Unaligned",
+        description: "Ships not aligned with any faction",
+        favor: 0,
+        hexColor: '828282'
+    },
+  ],
   stationModules: [{
     name: "Command Module",
     description: "The command center of the station",
@@ -123,6 +176,26 @@ gameLoop(1, {
 ]
 });
 
+const newVessel: Vessel = {
+    name: "Big Fred",
+    class: "Space Truck",
+    faction: "Space Freighter Union",
+    generatesAir: 0,
+    generatesPower: 1,
+    generatesFood: 0,
+    tradesAir: 0,
+    tradesPower: 20,
+    tradesFood: 10,
+    tradesAirForCredits: 0,
+    tradesPowerForCredits: 100,
+    tradesFoodForCredits: 200,
+    morale: 1,
+    queueTolerance: 2,
+    dockingDaysRequested: 3,
+    dockingFeePriceElasticity: .5,
+    timeInQueue: 0,
+}
+
 interface StationState {
     stationName: string,
     baseStation: string,
@@ -135,9 +208,12 @@ interface StationState {
     credits: number,
     daysWithoutFood: number,
     dockRings: DockRing[],
+    vesselQueue: Vessel[],
     funding: number,
     crewSalary: number,
     stationModules: StationModule[],
+    belongsToFaction: string,
+    factions: Faction[],
 }
 
 interface StationModule {
@@ -162,7 +238,39 @@ interface StationModule {
 }
 
 interface DockRing {
-    vessel?: string
+    vessel?: Vessel
+}
+
+interface Vessel {
+    name: string,
+    class: string,
+    faction: string,
+    /* the amount of air, power, and food the vessel or its crew consumes or generates when docked with the station */
+    generatesAir: number,
+    generatesPower: number,
+    generatesFood: number,
+    /* the amount of air, power, or food the vessel has to trade. negative means the vessel wants a resource, positive means it will sell */
+    tradesAir: number,
+    tradesPower: number,
+    tradesFood: number,
+    /* the amount of credits a vessel will trade a resource for. negative means it is selling, positive it is buying */
+    tradesAirForCredits: number,
+    tradesPowerForCredits: number,
+    tradesFoodForCredits: number,
+    morale: number, // the morale boost (or penalty) to the stations' crew while the vessel is docked
+    queueTolerance: number, // the amount in days the vessel will tolerate staying in the docking queue before leaving the area
+    dockingDaysRequested: number, // the number of days the vessel wants to stay docked
+    /* the vessel's sensitivity to docking fees. 1 = fully elastic, 0 = inelastic. The more elastic, the less likely the vessel will
+    be willing to dock with the station if it charges higher docking fees */
+    dockingFeePriceElasticity: number, 
+    timeInQueue: number, // Positive if the vessel is warping in, negative if it's warping out
+}
+
+interface Faction {
+    name: string,
+    description: string,
+    favor: number,
+    hexColor: string,
 }
 
 interface StartingOptions {
@@ -247,25 +355,41 @@ async function gameLoop(stardate: number, stationState: StationState) {
     console.clear();
 
     // print stardate
-    log(chalk.bold.bgGreen(`\n Space Station ${stationState.stationName} | Stardate: ${stardate} `));
+    log(chalk.bold.bgGreen(`\n Space Station ${stationState.stationName} | Stardate: ${stardate} | ${stationState.crew} Crew (${getUnassignedCrew(stationState)} idle) ${chalk.bgRedBright.bold(` Credits: ${stationState.credits}`)}`));
     let moduleString = "";
     stationState.stationModules.forEach(mod => {
-        moduleString += (mod.crewApplied >= mod.crewRequired && stationState.power + mod.power >= 0 ? chalk.yellow.bgGreen(`[${mod.name}]`) : chalk.gray(`[${mod.name}]`)) + chalk.bgGreen(' ')
+        moduleString += (mod.crewApplied >= mod.crewRequired && stationState.power + mod.power >= 0 ? chalk.green(`[${mod.name}]`) : chalk.gray(`[${mod.name}]`)) + (' ')
     })
-    log(moduleString);
+    log(moduleString + '\n');
     // print resources
-    log(`
-        ${chalk.bold.bgBlue(        ` Crew:    ${stationState.crew}   Unassigned: ${getUnassignedCrew(stationState)}   Morale: ${stationState.morale}/100    Salary: ${stationState.crewSalary}c`)} 
-        ${chalk.bold.bgYellowBright(` Power:   ${stationState.power}/${powerStorageCeiling}Mah `)} 
-        ${chalk.bold.bgWhite(       ` Air:     ${stationState.air}/${airStorageCeiling}L   `)} 
-        ${chalk.bold.bgMagenta(     ` Food:    ${stationState.food}/${foodStorageCeiling}u   `)}
-        ${chalk.bold.bgCyan(        ` Credits: ${stationState.credits}c `)}      
-    `);
+    const crewString =  ` Morale: ${progressBar(10, stationState.morale, 100, chalk.bgRedBright, chalk.grey)} `
+    const powerString = ` Power:  ${progressBar(powerStorageCeiling / 10, stationState.power, powerStorageCeiling, chalk.bgYellow.yellowBright, chalk)} - ${stationState.power}/${powerStorageCeiling}Mwh `
+    const airString =   ` Air:    ${progressBar(airStorageCeiling / 10, stationState.air, airStorageCeiling, chalk.bgWhite, chalk)} - ${stationState.air}/${airStorageCeiling}Kl `
+    const foodString =  ` Food:   ${progressBar(foodStorageCeiling / 10, stationState.food, foodStorageCeiling, chalk.bgMagenta, chalk)} - ${stationState.food}/${foodStorageCeiling}k `
+    
+    log(crewString);
+    log(powerString);
+    log(airString);
+    log(foodString);
+
+    log(`\n${chalk.bold.bgGrey(` Vessels docked: `)}`);
+
+    let vesselString = '';
     stationState.dockRings.forEach(dockRing => {
-        log(`${chalk.bold.bgGrey(` Dock Ring 1: ${dockRing.vessel !== '' ? dockRing.vessel : 'None'} `)}`);
+        vesselString += ` ${dockRing.vessel === undefined ? chalk.gray(`None`) : chalk.hex(getVesselColor(dockRing.vessel, stationState.factions))(`${dockRing.vessel.name} \n`)}`;
     });
-    log(`${chalk.bold.bgGrey(` Vessels in docking queue: None `)}`);
-    log(` `);
+    log(vesselString)
+    let nearbyVesselString = '';
+    stationState.vesselQueue.forEach(vessel => {
+        if (vessel.timeInQueue == -1 || vessel.timeInQueue == 1) {
+            nearbyVesselString += chalk.italic.cyan('<Warp Signature Detected>\n')
+        } else {
+            nearbyVesselString += chalk.hex(getVesselColor(vessel, stationState.factions))(`${vessel.name} \n`);
+        }
+    })
+    log(' ');
+    log(`${chalk.bold.bgGrey(` Vessels nearby: `)}`);
+    log(nearbyVesselString !== '' ? nearbyVesselString : chalk.gray(' None\n'));
 
     // wait for input
     const input = await prompts({
@@ -289,9 +413,14 @@ async function gameLoop(stardate: number, stationState: StationState) {
                 value: "crew"
             },
             {
-                title: "Docking",
+                title: "Docked Vessels",
                 description: "Manage docked vessels",
                 value: "docking"
+            },
+            {
+                title: "Vessels Nearby",
+                description: "Examine nearby vessels passing or waiting to dock",
+                value: "vessels"
             },
             {
                 title: "Quit",
@@ -307,13 +436,13 @@ async function gameLoop(stardate: number, stationState: StationState) {
     if (input.value === 'modules') {
         await moduleMenu(stationState);
     } else if (input.value === 'docking') {
-        await dockingMenu();
+        await dockingMenu(stationState);
+    } else if (input.value === 'vessels') {
+        await vesselsNearbyMenu(stationState);
     } else if (input.value === 'crew') {
         const moduleWithReassignedCrew = await assignCrew(stationState);
         if (moduleWithReassignedCrew !== undefined) {
-            const index = stationState.stationModules.findIndex(mod => {
-                mod.name === moduleWithReassignedCrew?.name;
-            });
+            const index = stationState.stationModules.findIndex(mod => mod.name === moduleWithReassignedCrew?.name);
             stationState.stationModules[index] = moduleWithReassignedCrew;
         }
     } else if (input.value === 'wait') {
@@ -380,6 +509,45 @@ async function gameLoop(stardate: number, stationState: StationState) {
                 stationState.credits = addWithFloor(stationState.credits, module.credits, 0);
             }
         })
+
+        // iterate through vessels in the docking queue. vessels with negative timeInQueue increment until zero. -2 is in the queue and leaving, and -1 is warping out
+        // +1 is warping in, +2 is joining the queue
+        stationState.vesselQueue.forEach(vessel => {
+            if (vessel.timeInQueue === -1) {
+                stationState.vesselQueue = stationState.vesselQueue.filter(filter => filter.name !== vessel.name);
+            }
+            if (vessel.timeInQueue >= 2) {
+                // attempt to dock at an available docking ring
+                let dockRing = stationState.dockRings.find(dock => dock.vessel === undefined);
+                if (dockRing !== undefined) {
+                    dockRing.vessel = vessel;
+                    stationState.vesselQueue = stationState.vesselQueue.filter(filter => filter.name !== vessel.name);
+                }
+            }
+            vessel.timeInQueue++;
+
+        });
+
+        //iterate through docked vessels and decrement their dockingDaysRequested. if any get to zero, they depart
+        stationState.dockRings.forEach(dockRing => {
+            if (dockRing.vessel !== undefined) {
+                let vessel = dockRing.vessel;
+
+                if (vessel?.dockingDaysRequested === 0) {
+                    dockRing.vessel = undefined;
+                    vessel.timeInQueue = -2;
+                    stationState.vesselQueue.push(vessel)
+                } else {
+                    vessel.dockingDaysRequested--;
+                }
+            }
+        })
+
+        // incoming vessels
+        if (stardate == 4) {
+            newVessel.timeInQueue = 1;
+            stationState.vesselQueue.push(newVessel);
+        }
         // roll for input resources
         // roll for trade
         // roll for problems
@@ -396,7 +564,6 @@ async function moduleMenu(stationState: StationState) {
             chalk.grey(`Not Operational `);
         log(`
         ${chalk.bold.white.bgGreen(module.name)} - ${chalk.gray(module.description)} - ${op}`)
-        
         
         log(`            ${chalk.bgBlue(   `Crew:    ${module.crewApplied} / ${module.crewRequired}`)}`)
         log(`            ${chalk.bgWhite(  `Air:     ${module.air}L`)}`)
@@ -462,8 +629,125 @@ function addWithCeilingAndFloor(n:number, i:number, floor:number, ceiling:number
     return n;
 }
 
-function dockingMenu() {
-    throw new Error("Function not implemented.");
+async function dockingMenu(stationState: StationState) {
+    console.clear();
+    const chooseVesselAnswer: Answers<string> = await prompts({
+        type: "select",
+        name: "value",
+        message: `Choose a docked vessel to manage`,
+        choices: stationState.dockRings.map(dockRing => {
+            if (dockRing.vessel === undefined) {
+                return {
+                    title: 'Dock Ring: None',
+                    value: 'none'
+                }
+            }
+            return {
+                title: `Dock Ring: ${chalk.hex(getVesselColor(dockRing.vessel, stationState.factions))(dockRing.vessel.name)}`,
+                value: dockRing.vessel?.name
+            };
+        }),
+    });
+
+    const dockRing = stationState.dockRings.find(dockRing => dockRing.vessel?.name === chooseVesselAnswer.value);
+
+    if (dockRing === undefined || dockRing.vessel === undefined) {
+        log(` There's nothing here... `);
+        return;
+    }
+
+    log(`This is the ${dockRing.vessel?.name}, a ${dockRing.vessel?.class} starship. It's affiliated with the ${ stationState.factions.find(faction => faction.name === dockRing.vessel?.faction)?.name} `)
+
+    const manageVesselAnswer: Answers<string> = await prompts({
+        type: "select",
+        name: "value",
+        message: `Manage the vessel`,
+        choices: [
+            {
+                title: 'Trade',
+                value: 'trade',
+            },
+            {
+                title: 'Evict',
+                description: 'Evict the vessel from your station',
+                value: 'evict',
+            },
+            {
+                title: 'Seize Cargo',
+                description: `Seize this vessel's cargo`,
+                value: 'seize',
+            },
+        ],
+    });
+
+    const choices: prompts.Choice[] = [ ];
+
+    
+
+    // trade menu
+    if (manageVesselAnswer.value === 'trade') {
+        const manageVesselAnswer: Answers<string> = await prompts({
+            type: "select",
+            name: "value",
+            message: `Trade with the ${dockRing.vessel?.name}`,
+            choices: [
+                {
+                    title: `${dockRing.vessel.tradesPower > 0}`,
+                    value: 'power',
+                },
+                {
+                    title: 'Air',
+                    value: 'air',
+                },
+                {
+                    title: 'Food',
+                    value: 'food',
+                },
+            ],
+        });
+    }
+}
+
+async function vesselsNearbyMenu(stationState: StationState) {
+    console.clear();
+    if (stationState.vesselQueue.length === 0) {
+        log(`There's nothing out there...`);
+        } else {
+        const chooseVesselAnswer: Answers<string> = await prompts({
+            type: "select",
+            name: "value",
+            message: `Choose a nearby vessel to examine`,
+            choices: stationState.vesselQueue.map(vessel => {
+                return {
+                    title: vessel.timeInQueue === 1 || vessel.timeInQueue === -1  ? chalk.cyan.italic(`<Warp Signature Detected>`) : chalk.hex(getVesselColor(vessel, stationState.factions))(vessel.name),
+                    value: vessel.name
+                };
+            }),
+        });
+
+        if (chooseVesselAnswer.value === undefined) {
+            return;
+        }
+        const vessel = stationState.vesselQueue.find(vessel => vessel.name === chooseVesselAnswer.value);
+
+        if (vessel === undefined) {
+            log(` There's nothing here... `);
+            return;
+        }
+
+        if (vessel.timeInQueue === -1 || vessel.timeInQueue === 1) {
+            log(` Scanners indicate a warp signature of a ${vessel.class} starship`);
+        } else {
+            log(`This is the ${vessel?.name}, a ${vessel?.class} starship. It's affiliated with the ${ stationState.factions.find(faction => faction.name === vessel?.faction)?.name} `)
+            log(`Scanners indicate that this vessel is${vessel.timeInQueue <= 0 ? ` leaving the area ` : ` waiting to dock with the station `}`);
+        }
+    }
+    const cont = await prompts({
+        type: 'confirm',
+        name: 'value',
+        message: 'Continue...',
+        initial: true
+      });
 }
 
 function getUnassignedCrew(stationState: StationState) {
@@ -487,7 +771,7 @@ async function assignCrew(stationState: StationState): Promise<StationModule | u
         message: `Crew: ${stationState.crew}  Unassigned: ${unassignedCrew} \n Choose a module to assign crew`,
         choices: stationState.stationModules.map(module => {
             return {
-                title: `${chalk.bgGreen(module.name)}: ${module.crewApplied}/${module.crewRequired}`,
+                title: `${chalk.white.bold.bgGreen(module.name)}: ${module.crewApplied}/${module.crewRequired}`,
                 value: module.name
             };
         }),
@@ -519,3 +803,21 @@ async function assignCrew(stationState: StationState): Promise<StationModule | u
     return moduleToAssign;
 }
 
+function progressBar(stops:number, value:number, max:number, filled:chalk.Chalk, unfilled:chalk.Chalk) {
+    let string = '[';
+    const filledTo = stops * value / max;
+    for (let i = 0; i < stops; i++) {
+        if (i < filledTo) {
+            string += filled(' ');
+        } else {
+            string += unfilled(' ');
+        }
+    }
+    string += ']';
+    return string;
+}
+
+function getVesselColor(vessel: Vessel | undefined, factions: Faction[]): string {
+    const vesselFaction = factions.find(faction => faction.name === vessel?.faction);
+    return vesselFaction !== undefined ? vesselFaction.hexColor : 'FFFFFF';
+}

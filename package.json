@@ -1,15 +1,15 @@
 {
   "name": "ssg",
-  "packageManager": "yarn@3.2.1",
   "devDependencies": {
     "@types/prompts": "^2.0.14",
     "typescript": "^4.8.3"
   },
   "scripts": {
-    "run": "tsc && node src/main.js"
+    "run": "tsc && node dist/main.js"
   },
   "dependencies": {
     "chalk": "4.1.2",
     "prompts": "^2.4.2"
-  }
+  },
+  "license": "MIT"
 }

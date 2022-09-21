@@ -3,10 +3,10 @@ import chalk from "chalk";
 import { StationState, Vessel } from "./types";
 import { testingStationState } from "./data/testStartingState";
 import { addWithCeilingAndFloor, addWithFloor, calculateStorageCeilings, d100, d20, dN, getUnassignedCrew, getVesselColor, progressBar, subtractWithFloor } from "./utils";
-import { assignCrewMenu } from "./assignCrewMenu";
-import { dockingMenu } from "./dockingMenu";
-import { moduleMenu } from "./moduleMenu";
-import { vesselsNearbyMenu } from "./vesselsNearbyMenu";
+import { assignCrewMenu } from "./menus/assignCrewMenu";
+import { dockingMenu } from "./menus/dockingMenu";
+import { moduleMenu } from "./menus/moduleMenu";
+import { vesselsNearbyMenu } from "./menus/vesselsNearbyMenu";
 import { vessels } from "./data/vessels";
 
 const { log } = console;
@@ -25,7 +25,7 @@ async function gameLoop(stardate: number, stationState: StationState) {
     const input = await prompts({
         type: "select",
         name: "value",
-        message: "Enter Command",
+        message: "Main Menu",
         choices: [
             {
                 title: "Wait",
@@ -33,9 +33,14 @@ async function gameLoop(stardate: number, stationState: StationState) {
                 value: "wait"
             },
             {
-                title: "List Modules",
-                description: "Examine, repair, build station modules",
-                value: "modules"
+                title: "Docked Vessels",
+                description: "Manage docked vessels",
+                value: "docking"
+            },
+            {
+                title: "Nearby Vessels",
+                description: "Examine nearby vessels passing or waiting to dock",
+                value: "vessels"
             },
             {
                 title: "Assign Crew",
@@ -43,14 +48,9 @@ async function gameLoop(stardate: number, stationState: StationState) {
                 value: "crew"
             },
             {
-                title: "Docked Vessels",
-                description: "Manage docked vessels",
-                value: "docking"
-            },
-            {
-                title: "Vessels Nearby",
-                description: "Examine nearby vessels passing or waiting to dock",
-                value: "vessels"
+                title: "List Modules",
+                description: "Examine, repair, build station modules",
+                value: "modules"
             },
             {
                 title: "Quit",

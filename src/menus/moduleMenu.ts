@@ -1,8 +1,8 @@
 import chalk from "chalk";
 import { log } from "console";
 import prompts from "prompts";
-import { StationState } from "./types";
-import { printTable } from "./utils";
+import { StationState } from "../types";
+import { printTable } from "../utils";
 
 export async function moduleMenu(stationState: StationState) {
     console.clear();

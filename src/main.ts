@@ -1,12 +1,13 @@
 import prompts, { Answers } from "prompts";
 import chalk from "chalk";
 import { StationState } from "./types";
-import { newVessel, testingStationState } from "./data/testStartingState";
+import { testingStationState } from "./data/testStartingState";
 import { addWithCeilingAndFloor, addWithFloor, calculateStorageCeilings, getUnassignedCrew, getVesselColor, progressBar, subtractWithFloor } from "./utils";
 import { assignCrewMenu } from "./assignCrewMenu";
 import { dockingMenu } from "./sellResourceMenu";
 import { moduleMenu } from "./moduleMenu";
 import { vesselsNearbyMenu } from "./vesselsNearbyMenu";
+import { vessels } from "./data/vessels";
 
 const { log } = console;
 
@@ -175,8 +176,11 @@ async function gameLoop(stardate: number, stationState: StationState) {
 
         // incoming vessels
         if (stardate == 4) {
-            newVessel.timeInQueue = 1;
-            stationState.vesselQueue.push(newVessel);
+            let bigFred = vessels.find(vessel => vessel.name === 'Big Fred');
+            if (bigFred) {
+                bigFred.timeInQueue = 1;
+                stationState.vesselQueue.push(bigFred);
+            }
         }
         // roll for input resources
         // roll for trade

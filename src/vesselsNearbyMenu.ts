@@ -35,7 +35,7 @@ export async function vesselsNearbyMenu(stationState: StationState) {
             log(` Scanners indicate a warp signature of a ${vessel.class} starship`);
         } else {
             log(`This is the ${vessel?.name}, a ${vessel?.class} starship. It's affiliated with the ${ stationState.factions.find(faction => faction.name === vessel?.faction)?.name} `)
-            if (vessel.dockingDaysRequested > 0) {
+            if (vessel.dockingDaysRequested >= 0) {
                 log(`Scanners indicate that this vessel is${vessel.timeInQueue <= 0 ? ` leaving the area ` : ` waiting to dock with the station `}`);
             } else {
                 log(`This vessel's intentions are unknown`);

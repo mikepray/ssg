@@ -24,6 +24,7 @@ export interface StationModule {
     name: string,
     description: string,
     /* resource cost per day. positive gains resource, negative spends resource */
+    rarity: number, // 0 is extremely common, 1 is extremely rare, -1 is never
     power: number,
     air: number,
     food: number,
@@ -34,11 +35,7 @@ export interface StationModule {
     powerStorage: number,
     airStorage: number,
     foodStorage: number,
-    powerPurchaseCost: number,
-    airPurchaseCost: number,
-    foodPurchaseCost: number,
     creditPurchaseCost: number,
-    wasPowered: boolean, // true if the module was operational the last turn
 }
 
 export interface DockRing {

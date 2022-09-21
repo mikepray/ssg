@@ -7,7 +7,7 @@ import { printTable } from "./utils";
 export async function moduleMenu(stationState: StationState) {
     console.clear();
     stationState.stationModules.forEach(module => {
-        const op = module.crewApplied >= module.crewRequired && module.wasPowered ? 
+        const op = module.crewApplied >= module.crewRequired ? 
             chalk.yellow(`Operational` ) :
             chalk.grey(`Not Operational `);
         log(`${chalk.bold.white.bgGreen(module.name)} ${op} - ${chalk.gray(module.description)}`)

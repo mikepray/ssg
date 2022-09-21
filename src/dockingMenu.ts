@@ -117,7 +117,6 @@ export async function dockingMenu(stationState: StationState) {
                     foodStorageCeiling += module.foodStorage;
                 });
                 printStationStatus(stationState);
-                log(` Credits: ${stationState.credits} Power: ${stationState.power} / ${powerStorageCeiling} | Air: ${stationState.air} / ${airStorageCeiling} | Food: ${stationState.food} / ${foodStorageCeiling}`)
 
                 // trade menu
                 tradeAnswer = await prompts({

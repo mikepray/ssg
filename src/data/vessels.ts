@@ -20,7 +20,7 @@ export const vessels: Vessel[] = [
         dockingDaysRequested: 3,
         dockingFeePriceElasticity: .5,
         timeInQueue: 0,
-        rarity: .1,
+        rarity: 1,
     },
     {
         name: "Zeelandia",
@@ -62,7 +62,7 @@ export const vessels: Vessel[] = [
         dockingDaysRequested: 3,
         dockingFeePriceElasticity: .5,
         timeInQueue: 0,
-        rarity: .1,
+        rarity: -1,
     },
     {
         name: "Ned",
@@ -83,7 +83,7 @@ export const vessels: Vessel[] = [
         dockingDaysRequested: 3,
         dockingFeePriceElasticity: .5,
         timeInQueue: 0,
-        rarity: .1,
+        rarity: 1,
     },
     {
         name: "Alfonso",
@@ -104,7 +104,7 @@ export const vessels: Vessel[] = [
         dockingDaysRequested: 3,
         dockingFeePriceElasticity: .5,
         timeInQueue: 0,
-        rarity: .1,
+        rarity: 1,
     },
     {
         name: "Zierikzee",
@@ -125,7 +125,7 @@ export const vessels: Vessel[] = [
         dockingDaysRequested: 3,
         dockingFeePriceElasticity: .5,
         timeInQueue: 0,
-        rarity: .3,
+        rarity: 5,
     },
     {
         name: "Leiden",
@@ -146,7 +146,7 @@ export const vessels: Vessel[] = [
         dockingDaysRequested: 3,
         dockingFeePriceElasticity: .5,
         timeInQueue: 0,
-        rarity: .3,
+        rarity: 5,
     },
     {
         name: "Overijssel",
@@ -167,7 +167,7 @@ export const vessels: Vessel[] = [
         dockingDaysRequested: 5,
         dockingFeePriceElasticity: .5,
         timeInQueue: 0,
-        rarity: .3,
+        rarity: 5,
     },
     {
         name: "∆",
@@ -188,6 +188,6 @@ export const vessels: Vessel[] = [
         dockingDaysRequested: -1,
         dockingFeePriceElasticity: .5,
         timeInQueue: 0,
-        rarity: .9,
+        rarity: 18,
     },
 ];

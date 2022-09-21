@@ -4,6 +4,7 @@ export interface StationState {
     stationName: string,
     baseStation: string,
     location: string,
+    stardate: number,
     crew: number,
     morale: number,
     power: number,
@@ -11,6 +12,7 @@ export interface StationState {
     food: number,
     credits: number,
     daysWithoutFood: number,
+    daysSinceVesselSpawn: number,
     dockRings: DockRing[],
     vesselQueue: Vessel[],
     funding: number,
@@ -18,6 +20,10 @@ export interface StationState {
     stationModules: StationModule[],
     belongsToFaction: string,
     factions: Faction[],
+    previouslyVisitedVesselNames: {
+        name: string,
+        stardateSinceLastVisited: number,
+    }[],
 }
 
 export interface StationModule {
@@ -65,7 +71,15 @@ export interface Vessel {
     /* the vessel's sensitivity to docking fees. 1 = fully elastic, 0 = inelastic. The more elastic, the less likely the vessel will
     be willing to dock with the station if it charges higher docking fees */
     dockingFeePriceElasticity: number, 
-    timeInQueue: number, // Positive if the vessel is warping in, negative if it's warping out
+    // Warping In & Docking
+    // timeInQueue = 1 == Warping In
+    // timeInQueue = 2 == Nearby
+    // timeInQueue > 2 == Waiting to dock
+    
+    // Undocking and Warping Out
+    // timeInQueue = -2 == Undocked and nearby
+    // timeInQueue = -1 == Warping out
+    timeInQueue: number, 
     rarity: number, // -1 is never, 0 is extremely common, 1 is extremely rare
 }
 

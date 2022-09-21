@@ -1,17 +1,16 @@
 import prompts, { Answers } from "prompts";
 import chalk from "chalk";
-import { StationState } from "./types";
+import { StationState, Vessel } from "./types";
 import { testingStationState } from "./data/testStartingState";
-import { addWithCeilingAndFloor, addWithFloor, calculateStorageCeilings, getUnassignedCrew, getVesselColor, progressBar, subtractWithFloor } from "./utils";
+import { addWithCeilingAndFloor, addWithFloor, calculateStorageCeilings, d100, d20, dN, getUnassignedCrew, getVesselColor, progressBar, subtractWithFloor } from "./utils";
 import { assignCrewMenu } from "./assignCrewMenu";
-import { dockingMenu } from "./sellResourceMenu";
+import { dockingMenu } from "./dockingMenu";
 import { moduleMenu } from "./moduleMenu";
 import { vesselsNearbyMenu } from "./vesselsNearbyMenu";
 import { vessels } from "./data/vessels";
 
 const { log } = console;
 
-let stardate = 1000;
 /*
 askStartingOptions().then((opts) => {
        gameLoop(stardate, opts);
@@ -103,6 +102,8 @@ async function gameLoop(stardate: number, stationState: StationState) {
 
                 }                
             }
+        } else {
+            stationState.daysWithoutFood = 0;
         }
 
         // if there's no credits, reduce morale
@@ -204,26 +205,36 @@ async function gameLoop(stardate: number, stationState: StationState) {
             }
         })
 
-        // incoming vessels
-        if (stardate == 2) {
-            let bigFred = vessels.find(vessel => vessel.name === 'Big Fred');
-            if (bigFred) {
-                bigFred.timeInQueue = 1;
-                stationState.vesselQueue.push(bigFred);
-            }
+        // // incoming vessels
+        // if (stardate == 2) {
+        //     let bigFred = vessels.find(vessel => vessel.name === 'Big Fred');
+        //     if (bigFred) {
+        //         bigFred.timeInQueue = 1;
+        //         stationState.vesselQueue.push(bigFred);
+        //     }
+        // }
+
+        // if (stardate == 6) {
+        //     let alien = vessels.find(vessel => vessel.name === '∆');
+        //     if (alien) {
+        //         alien.timeInQueue = 1;
+        //         stationState.vesselQueue.push(alien);
+        //     }
+        // }        
+
+        const incomingVessel = spawnVessel(stationState);
+        if (incomingVessel) {
+            incomingVessel.timeInQueue = 1;
+            stationState.vesselQueue.push(incomingVessel);
         }
 
-        if (stardate == 6) {
-            let alien = vessels.find(vessel => vessel.name === '∆');
-            if (alien) {
-                alien.timeInQueue = 1;
-                stationState.vesselQueue.push(alien);
-            }
-        }        
-        // roll for input resources
-        // roll for trade
-        // roll for problems
+        // allow previously visited vessels to revisit the station after at least 11 days
+        stationState.previouslyVisitedVesselNames = stationState.previouslyVisitedVesselNames.filter(vessel => 
+            vessel.stardateSinceLastVisited + 10 + d20() >= stationState.stardate);
+        
         // problem loop
+        
+        stationState.stardate++;
     }
     gameLoop(stardate, stationState);
 }
@@ -233,7 +244,7 @@ export function printStationStatus(stationState: StationState) {
 
     const ceilings = calculateStorageCeilings(stationState);
     // print stardate
-    log(chalk.bold.bgGreen(`\n Space Station ${stationState.stationName} | Stardate: ${stardate} | ${stationState.crew} Crew (${getUnassignedCrew(stationState)} idle) ${chalk.bgRedBright.bold(` Credits: ${stationState.credits}`)}`));
+    log(chalk.bold.bgGreen(`\n Space Station ${stationState.stationName} | Stardate: ${stationState.stardate} | ${stationState.crew} Crew (${getUnassignedCrew(stationState)} idle) ${chalk.bgRedBright.bold(` Credits: ${stationState.credits}`)}`));
     let moduleString = "";
     stationState.stationModules.forEach(mod => {
         moduleString += (mod.crewApplied >= mod.crewRequired && stationState.power + mod.power >= 0 ? chalk.green(`[${mod.name}]`) : chalk.gray(`[${mod.name}]`)) + (' ')
@@ -250,17 +261,20 @@ export function printStationStatus(stationState: StationState) {
     log(airString);
     log(foodString);
 
+    // print docked vessels
     log(`\n${chalk.bold.bgGrey(` Vessels docked: `)}`);
 
     let vesselString = '';
     stationState.dockRings.forEach(dockRing => {
-        vesselString += ` ${dockRing.vessel === undefined ? chalk.gray(`None`) : chalk.hex(getVesselColor(dockRing.vessel, stationState.factions))(`${dockRing.vessel.name} \n`)}`;
+        vesselString += ` > ${dockRing.vessel === undefined ? chalk.gray(`None`) : chalk.hex(getVesselColor(dockRing.vessel, stationState.factions))(`${dockRing.vessel.name}`)}\n`;
     });
     log(vesselString)
     let nearbyVesselString = '';
     stationState.vesselQueue.forEach(vessel => {
-        if (vessel.timeInQueue == -1 || vessel.timeInQueue == 1) {
-            nearbyVesselString += chalk.italic.cyan('<Warp Signature Detected>\n')
+        if (vessel.timeInQueue == -1) {
+            nearbyVesselString += chalk.italic.cyan('<Outgoing Warp Signature>\n')
+        } else if (vessel.timeInQueue == 1) {
+            nearbyVesselString += chalk.italic.cyan('<Incoming Warp Signature>\n')
         } else {
             nearbyVesselString += chalk.hex(getVesselColor(vessel, stationState.factions))(`${vessel.name} \n`);
         }
@@ -269,4 +283,31 @@ export function printStationStatus(stationState: StationState) {
     log(`${chalk.bold.bgGrey(` Vessels nearby: `)}`);
     log(nearbyVesselString !== '' ? nearbyVesselString : chalk.gray(' None\n'));
 
+}
+
+function spawnVessel(stationState: StationState): Vessel | undefined {
+    let vessel: Vessel | undefined = undefined;
+    // an increasing chance that a vessel spawns
+    if (d100() < (25 + (stationState.daysSinceVesselSpawn * 2))) {
+        const rarity = d20();
+        // find vessels according to rarity. don't consider vessels that have visited previously
+        const candidateVesselsToSpawn = vessels.filter(vessel => 
+            vessel.rarity > 0 && vessel.rarity < rarity &&
+            !vesselPreviouslyVisited(vessel.name, stationState.previouslyVisitedVesselNames) );
+
+        vessel = candidateVesselsToSpawn[dN(candidateVesselsToSpawn.length) - 1];
+    
+        if (vessel) {
+            stationState.previouslyVisitedVesselNames.push(
+                {name: vessel.name, stardateSinceLastVisited: stationState.stardate});
+            stationState.daysSinceVesselSpawn = 0;
+        }
+        
+    }
+    return vessel;
+}
+
+function vesselPreviouslyVisited(name: string, 
+    previouslyVisitedVesselNames: {name: string, stardateSinceLastVisited: number}[]) {
+    return previouslyVisitedVesselNames.find(vessel => vessel.name == name) !== undefined;
 }

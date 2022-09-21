@@ -1,8 +1,8 @@
 import chalk from "chalk";
 import { log } from "console";
 import prompts, { Answers } from "prompts";
-import { StationState } from "./types";
-import { getVesselColor } from "./utils";
+import { StationState } from "../types";
+import { getVesselColor } from "../utils";
 
 export async function vesselsNearbyMenu(stationState: StationState) {
     console.clear();

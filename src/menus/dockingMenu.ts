@@ -1,8 +1,8 @@
 import chalk from "chalk";
 import prompts, { Answers } from "prompts";
-import { printStationStatus } from "./main";
-import { StationState, Vessel } from "./types";
-import { getVesselColor } from "./utils";
+import { printStationStatus } from "../main";
+import { StationState, Vessel } from "../types";
+import { getVesselColor } from "../utils";
 
 const { log } = console;
 

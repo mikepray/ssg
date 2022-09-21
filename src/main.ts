@@ -25,7 +25,7 @@ async function gameLoop(stardate: number, stationState: StationState) {
     const input = await prompts({
         type: "select",
         name: "value",
-        message: "Enter Command",
+        message: "Main Menu",
         choices: [
             {
                 title: "Wait",
@@ -38,7 +38,7 @@ async function gameLoop(stardate: number, stationState: StationState) {
                 value: "docking"
             },
             {
-                title: "Vessels Nearby",
+                title: "Nearby Vessels",
                 description: "Examine nearby vessels passing or waiting to dock",
                 value: "vessels"
             },

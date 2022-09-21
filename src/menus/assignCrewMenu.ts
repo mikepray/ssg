@@ -1,8 +1,8 @@
 import chalk from "chalk";
 import { log } from "console";
 import prompts, { Answers } from "prompts";
-import { StationState, StationModule } from "./types";
-import { getUnassignedCrew, getAssignedCrew } from "./utils";
+import { StationState, StationModule } from "../types";
+import { getUnassignedCrew, getAssignedCrew } from "../utils";
 
 export async function assignCrewMenu(stationState: StationState): Promise<StationModule | undefined> {
     console.clear();

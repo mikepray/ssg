@@ -1,4 +1,6 @@
-import { StationState } from "./types";
+import chalk from "chalk";
+import { log } from "console";
+import { Faction, StationState, Vessel } from "./types";
 
 export function calculateStorageCeilings(stationState: StationState) {
     // iterate through station modules to determine storage ceilings
@@ -54,3 +56,45 @@ export function addWithCeilingAndFloor(n:number, i:number, floor:number, ceiling
     }
     return n;
 }
+
+export function progressBar(stops:number, value:number, max:number, filled:chalk.Chalk, unfilled:chalk.Chalk) {
+    let string = '[';
+    const filledTo = stops * value / max;
+    for (let i = 0; i < stops; i++) {
+        if (i < filledTo) {
+            string += filled(' ');
+        } else {
+            string += unfilled(' ');
+        }
+    }
+    string += ']';
+    return string;
+}
+
+export function getVesselColor(vessel: Vessel | undefined, factions: Faction[]): string {
+    const vesselFaction = factions.find(faction => faction.name === vessel?.faction);
+    return vesselFaction !== undefined ? vesselFaction.hexColor : 'FFFFFF';
+}
+
+export function printTable(moduleTable: string[][]): any {
+    moduleTable.forEach(row => {
+        let cells = '';
+        for(let i = 0; i < row.length; i++) {
+            cells = cells + row[i] + ' | ';
+        }   
+        log(cells);
+    });
+}
+
+export function getUnassignedCrew(stationState: StationState) {
+    return stationState.crew - getAssignedCrew(stationState);
+}
+
+export function getAssignedCrew(stationState: StationState) {
+    let crewAssigned = 0;
+    stationState.stationModules.forEach(module => {
+        crewAssigned += module.crewApplied;
+    })
+    return crewAssigned;
+}
+

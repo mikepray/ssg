@@ -17,7 +17,7 @@ export const testingStationState = {
   credits: 1000,
   dockRings: [
     { vessel: vessels.find(vessel => vessel.name === 'Zeelandia') },
-    { },
+    { vessel: vessels.find(vessel => vessel.name === 'Overijssel') },
   ],
   vesselQueue: [],
   funding: 10,

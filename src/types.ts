@@ -66,12 +66,13 @@ export interface Vessel {
     be willing to dock with the station if it charges higher docking fees */
     dockingFeePriceElasticity: number, 
     timeInQueue: number, // Positive if the vessel is warping in, negative if it's warping out
+    rarity: number, // -1 is never, 0 is extremely common, 1 is extremely rare
 }
 
 export interface Faction {
     name: string,
     description: string,
-    favor: number,
+    favor: number, // -1 means the player cannot gain or lose favor with this faction (e.g., unaligned, aliens)
     hexColor: string,
 }
 

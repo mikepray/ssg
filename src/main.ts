@@ -143,20 +143,50 @@ async function gameLoop(stardate: number, stationState: StationState) {
 
         // iterate through vessels in the docking queue. vessels with negative timeInQueue increment until zero. -2 is in the queue and leaving, and -1 is warping out
         // +1 is warping in, +2 is joining the queue
-        stationState.vesselQueue.forEach(vessel => {
-            if (vessel.timeInQueue === -1) {
-                stationState.vesselQueue = stationState.vesselQueue.filter(filter => filter.name !== vessel.name);
-            }
-            if (vessel.timeInQueue >= 2) {
-                // attempt to dock at an available docking ring
-                let dockRing = stationState.dockRings.find(dock => dock.vessel === undefined);
-                if (dockRing !== undefined) {
-                    dockRing.vessel = vessel;
-                    stationState.vesselQueue = stationState.vesselQueue.filter(filter => filter.name !== vessel.name);
-                }
-            }
-            vessel.timeInQueue++;
+        
+        // Warping In & Docking
+        // timeInQueue = 1 == Warping In
+        // timeInQueue = 2 == Nearby
+        // timeInQueue > 2 == Waiting to dock
+        
+        // Undocking and Warping Out
+        // timeInQueue = -2 == Undocked and nearby
+        // timeInQueue = -1 == Warping out
 
+        stationState.vesselQueue.forEach((vessel) => {
+          if (vessel.timeInQueue === -1) {
+            // un-dock the vessel
+            stationState.vesselQueue = stationState.vesselQueue.filter(
+              (filter) => filter.name !== vessel.name
+            );
+          }
+          if (vessel.timeInQueue >= 2) {
+              // attempt to dock at an available docking ring
+            let dockRing = stationState.dockRings.find(
+                (dock) => dock.vessel === undefined
+            );
+            // vessels with dockingDaysRequested = -1 never want to dock (e.g. aliens)
+            if (dockRing && vessel.dockingDaysRequested > 0) {
+              dockRing.vessel = vessel;
+              stationState.vesselQueue = stationState.vesselQueue.filter(
+                (filter) => filter.name !== vessel.name
+              );
+            } else {
+              // the vessel can't find a docking ring
+              if (vessel.queueTolerance == 0) {
+                // if the vessel's queue tolerance reaches zero, it will warp out and the player loses favor with the vessel's faction
+                let vesselFaction = stationState.factions.find(
+                  (faction) => faction.name === vessel.faction
+                );
+                if (vesselFaction) {
+                  subtractWithFloor(vesselFaction.favor, 1, 0);
+                }
+                vessel.timeInQueue = -2;
+              }
+              vessel.queueTolerance--;
+            }
+          }
+          vessel.timeInQueue++;
         });
 
         //iterate through docked vessels and decrement their dockingDaysRequested. if any get to zero, they depart
@@ -175,13 +205,21 @@ async function gameLoop(stardate: number, stationState: StationState) {
         })
 
         // incoming vessels
-        if (stardate == 4) {
+        if (stardate == 2) {
             let bigFred = vessels.find(vessel => vessel.name === 'Big Fred');
             if (bigFred) {
                 bigFred.timeInQueue = 1;
                 stationState.vesselQueue.push(bigFred);
             }
         }
+
+        if (stardate == 6) {
+            let alien = vessels.find(vessel => vessel.name === '∆');
+            if (alien) {
+                alien.timeInQueue = 1;
+                stationState.vesselQueue.push(alien);
+            }
+        }        
         // roll for input resources
         // roll for trade
         // roll for problems

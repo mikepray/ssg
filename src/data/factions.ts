@@ -10,7 +10,7 @@ export const factions: Faction[] = [
       {
         name: "Elythorum Cabal",
         description: "Mysterious aliens",
-        favor: 0,
+        favor: -1,
         hexColor: "3EE766",
       },
       {
@@ -26,9 +26,15 @@ export const factions: Faction[] = [
         hexColor: "2CB36F",
       },
       {
+        name: "The Razor Raiders",
+        description: "Pirate fleet",
+        favor: -1,
+        hexColor: "E64A19",
+      },
+      {
         name: "Unaligned",
         description: "Ships not aligned with any faction",
-        favor: 0,
+        favor: -1,
         hexColor: "828282",
       },
 ]

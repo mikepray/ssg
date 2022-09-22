@@ -7,8 +7,8 @@
     "typescript": "^4.8.3"
   },
   "scripts": {
-    "run": "tsc && node dist/main.js",
-    "test": "tap"
+    "start": "tsc && node dist/main.js",
+    "test": "tsc && tsc -p test/tsconfig.json && tap test/dist/**/*.test.js"
   },
   "dependencies": {
     "chalk": "4.1.2",

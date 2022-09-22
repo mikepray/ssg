@@ -37,7 +37,6 @@ export async function assignCrewMenu(stationState: StationState): Promise<Statio
             }
         })
         // set the crew assignment to the module
-        log(`crewAssignementForModule.value ${crewAssignmentForModule.value}`)
         if (crewAssignmentForModule.value >= 0) {
             moduleToAssign.crewApplied = crewAssignmentForModule.value;
         }

@@ -95,3 +95,5 @@ export interface StartingOptions {
   baseStation?: Answers<string>;
   location?: Answers<string>;
 }
+
+export type Log = (input: string) => void;

@@ -1,14 +1,12 @@
 import chalk from "chalk";
 import prompts, { Answers } from "prompts";
-import { printStationStatus } from "../main";
-import { StationState, Vessel } from "../types";
+import { printStationStatus } from "../game";
+import { Log, StationState, Vessel } from "../types";
 import { getVesselColor } from "../utils";
 
-const { log } = console;
-
-export async function dockingMenu(stationState: StationState) {
+export async function dockingMenu(stationState: StationState, log: Log) {
     console.clear();
-    printStationStatus(stationState);
+    printStationStatus(stationState, log);
     const chooseVesselAnswer: Answers<string> = await prompts({
         type: "select",
         name: "value",
@@ -35,7 +33,7 @@ export async function dockingMenu(stationState: StationState) {
     } else {
         const tradingVessel = dockRing.vessel;
         console.clear();
-        printStationStatus(stationState);
+        printStationStatus(stationState, log);
         log(`This is the ${tradingVessel.name}, a ${tradingVessel.class} starship. It's affiliated with the ${ stationState.factions.find(faction => faction.name === tradingVessel?.faction)?.name} `)
 
         const manageVesselAnswer: Answers<string> = await prompts({
@@ -116,7 +114,7 @@ export async function dockingMenu(stationState: StationState) {
                     powerStorageCeiling += module.powerStorage;
                     foodStorageCeiling += module.foodStorage;
                 });
-                printStationStatus(stationState);
+                printStationStatus(stationState, log);
 
                 // trade menu
                 tradeAnswer = await prompts({

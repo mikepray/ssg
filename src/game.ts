@@ -7,10 +7,12 @@ import { dockingMenu } from "./menus/dockingMenu";
 import { moduleMenu } from "./menus/moduleMenu";
 import { vesselsNearbyMenu } from "./menus/vesselsNearbyMenu";
 import { vessels } from "./data/vessels";
+import { testingStationState } from "./data/testStartingState";
 
 export async function gameLoop(stardate: number, stationState: StationState, log: Log) {
     printStationStatus(stationState, log);
     const ceilings = calculateStorageCeilings(stationState);
+    
     // wait for input
     const input = await prompts({
         type: "select",
@@ -66,35 +68,27 @@ export async function gameLoop(stardate: number, stationState: StationState, log
             stationState.stationModules[index] = moduleWithReassignedCrew;
         }
     } else if (input.value === 'wait') {
-        stardate++;
-        // gain/spend resources
-        stationState.credits += stationState.funding;
-        // for every crew, spend 1 air and 1 food and spend their salary in credits
-        stationState.credits = subtractWithFloor(stationState.credits, stationState.crew * stationState.crewSalary, 0);
-        stationState.air = subtractWithFloor(stationState.air, stationState.crew, 0);
-        stationState.food = subtractWithFloor(stationState.food, stationState.crew, 0);
+        // let newState = incrementStardate(stationState);
+        // newState = addFunding(newState);
+        // newState = spendResourcesPerCrew(newState);
+        // newState = reduceMoraleWithoutFood(newState);
+        // newState = reduceCrewWithoutFood(newState);
 
-        // if there's no food, reduce morale
-        if (stationState.food <= 0) {
-            stationState.morale = subtractWithFloor(stationState.morale, 10, 0);
-            stationState.daysWithoutFood++;
-            if (stationState.daysWithoutFood > 5) {
-                // if it's been too long without food, reduce crew!
-                stationState.crew = subtractWithFloor(stationState.crew, 1, 0);
-                // unassign a crew from a module
-                const module = stationState.stationModules.find(val => val.crewApplied > 0);
-                if (module !== undefined) {
-                    module.crewApplied -= 1;
-                    const index = stationState.stationModules.findIndex(mod => {
-                        mod.name === module.name;
-                    });
-                    stationState.stationModules[index] = module;
+        new StationBuilder(stationState)
+        .incrementStardate()
+        .addFunding()
+        .spendResourcesPerCrew()
+        .reduceMoraleWithoutFood()
+        .reduceCrewWithoutFood();
 
-                }                
-            }
-        } else {
-            stationState.daysWithoutFood = 0;
-        }
+        new StationBuilder(stationState)
+            .mutate(station => {
+                return { ...station,
+                    stardate: station.stardate + 1 };
+            }).mutate(station => {
+            return { ...station, 
+                    credits: station.credits + station.funding };
+            })
 
         // if there's no credits, reduce morale
         if (stationState.credits <= 0) {
@@ -228,6 +222,69 @@ export async function gameLoop(stardate: number, stationState: StationState, log
     }
     gameLoop(stardate, stationState, log);
 }
+
+class StationBuilder {
+    stationState: StationState
+    constructor(stationState: StationState) {
+        this.stationState = stationState;
+    }
+
+    mutate(func: (stationState: StationState) => StationState): StationBuilder {
+        return new StationBuilder(this.stationState);
+    }
+
+    incrementStardate(): StationBuilder {
+        return new StationBuilder({ ...this.stationState,
+             stardate: this.stationState.stardate + 1 });
+    }
+    
+    addFunding(): StationBuilder {
+        return new StationBuilder({ ...this.stationState, 
+            credits: this.stationState.credits + this.stationState.funding });
+    }
+    
+    spendResourcesPerCrew(): StationBuilder {
+        return new StationBuilder({ ...this.stationState,
+            credits: subtractWithFloor(this.stationState.credits, this.stationState.crew * this.stationState.crewSalary, 0),
+            air: subtractWithFloor(this.stationState.air, this.stationState.crew, 0),
+            food: subtractWithFloor(this.stationState.food, this.stationState.crew, 0)
+        });
+    }
+
+    reduceMoraleWithoutFood(): StationBuilder {
+        // if there's no food, reduce morale
+        if (this.stationState.food <= 0) {
+            return new StationBuilder({ ...this.stationState, 
+                morale: subtractWithFloor(this.stationState.morale, 10, 0),
+                daysWithoutFood: this.stationState.daysWithoutFood + 1
+            });
+            
+        }
+        return new StationBuilder({ ...this.stationState, 
+            daysWithoutFood: 0 });
+    }
+    
+    reduceCrewWithoutFood(): StationBuilder {
+        if (this.stationState.daysWithoutFood > 5) {
+            // if it's been too long without food, reduce crew!
+            const crew = subtractWithFloor(this.stationState.crew, 1, 0);
+            // unassign a crew from a module TODO
+            const module = this.stationState.stationModules.find(val => val.crewApplied > 0);
+            if (module !== undefined) {
+                module.crewApplied -= 1;
+                const index = this.stationState.stationModules.findIndex(mod => {
+                    mod.name === module.name;
+                });
+                this.stationState.stationModules[index] = module;
+    
+            }                
+        }
+        return new StationBuilder(this.stationState);
+    }
+}
+
+
+
 
 export function printStationStatus(stationState: StationState, log: Log) {
     console.clear();

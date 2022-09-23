@@ -24,6 +24,8 @@ export interface StationState {
         name: string,
         stardateSinceLastVisited: number,
     }[],
+    apply: (stationState: Partial<StationState>) => StationState,
+    applyToState: (fn: (stationState: StationState) => StationState) => StationState
 }
 
 export interface StationModule {

@@ -74,21 +74,15 @@ export async function gameLoop(stardate: number, stationState: StationState, log
         // newState = reduceMoraleWithoutFood(newState);
         // newState = reduceCrewWithoutFood(newState);
 
-        new StationBuilder(stationState)
-        .incrementStardate()
-        .addFunding()
-        .spendResourcesPerCrew()
-        .reduceMoraleWithoutFood()
-        .reduceCrewWithoutFood();
+        stationState = stationState
+          .applyToState(incrementStardate)
+          .applyToState(addFunding)
+          .applyToState(spendResourcesPerCrew)
+          .applyToState(reduceMoraleWithoutFood)
+          .applyToState(reduceCrewWithoutFood);
 
-        new StationBuilder(stationState)
-            .mutate(station => {
-                return { ...station,
-                    stardate: station.stardate + 1 };
-            }).mutate(station => {
-            return { ...station, 
-                    credits: station.credits + station.funding };
-            })
+
+            
 
         // if there's no credits, reduce morale
         if (stationState.credits <= 0) {
@@ -223,66 +217,55 @@ export async function gameLoop(stardate: number, stationState: StationState, log
     gameLoop(stardate, stationState, log);
 }
 
-class StationBuilder {
-    stationState: StationState
-    constructor(stationState: StationState) {
-        this.stationState = stationState;
-    }
-
-    mutate(func: (stationState: StationState) => StationState): StationBuilder {
-        return new StationBuilder(this.stationState);
-    }
-
-    incrementStardate(): StationBuilder {
-        return new StationBuilder({ ...this.stationState,
-             stardate: this.stationState.stardate + 1 });
-    }
-    
-    addFunding(): StationBuilder {
-        return new StationBuilder({ ...this.stationState, 
-            credits: this.stationState.credits + this.stationState.funding });
-    }
-    
-    spendResourcesPerCrew(): StationBuilder {
-        return new StationBuilder({ ...this.stationState,
-            credits: subtractWithFloor(this.stationState.credits, this.stationState.crew * this.stationState.crewSalary, 0),
-            air: subtractWithFloor(this.stationState.air, this.stationState.crew, 0),
-            food: subtractWithFloor(this.stationState.food, this.stationState.crew, 0)
-        });
-    }
-
-    reduceMoraleWithoutFood(): StationBuilder {
-        // if there's no food, reduce morale
-        if (this.stationState.food <= 0) {
-            return new StationBuilder({ ...this.stationState, 
-                morale: subtractWithFloor(this.stationState.morale, 10, 0),
-                daysWithoutFood: this.stationState.daysWithoutFood + 1
-            });
-            
-        }
-        return new StationBuilder({ ...this.stationState, 
-            daysWithoutFood: 0 });
-    }
-    
-    reduceCrewWithoutFood(): StationBuilder {
-        if (this.stationState.daysWithoutFood > 5) {
-            // if it's been too long without food, reduce crew!
-            const crew = subtractWithFloor(this.stationState.crew, 1, 0);
-            // unassign a crew from a module TODO
-            const module = this.stationState.stationModules.find(val => val.crewApplied > 0);
-            if (module !== undefined) {
-                module.crewApplied -= 1;
-                const index = this.stationState.stationModules.findIndex(mod => {
-                    mod.name === module.name;
-                });
-                this.stationState.stationModules[index] = module;
-    
-            }                
-        }
-        return new StationBuilder(this.stationState);
-    }
+const spendResourcesPerCrew = (stationState: StationState): StationState => {
+    return { ...stationState,
+        credits: subtractWithFloor(stationState.credits, stationState.crew * stationState.crewSalary, 0),
+        air: subtractWithFloor(stationState.air, stationState.crew, 0),
+        food: subtractWithFloor(stationState.food, stationState.crew, 0)
+    };
 }
 
+const reduceMoraleWithoutFood = (stationState: StationState): StationState => {
+     // if there's no food, reduce morale
+     if (stationState.food <= 0) {
+        return { ...stationState, 
+            morale: subtractWithFloor(stationState.morale, 10, 0),
+            daysWithoutFood: stationState.daysWithoutFood + 1
+        };
+        
+    }
+    return { ...stationState, 
+        daysWithoutFood: 0 };
+}
+
+const reduceCrewWithoutFood = (stationState: StationState): StationState => {
+    if (stationState.daysWithoutFood > 5) {
+        // if it's been too long without food, reduce crew!
+        const crew = subtractWithFloor(stationState.crew, 1, 0);
+        // unassign a crew from a module TODO
+        const module = stationState.stationModules.find(val => val.crewApplied > 0);
+        if (module !== undefined) {
+            module.crewApplied -= 1;
+            const index = stationState.stationModules.findIndex(mod => {
+                mod.name === module.name;
+            });
+            stationState.stationModules[index] = module;
+
+        }                
+        return stationState.apply({ crew: crew});
+    }
+    return stationState;
+}
+
+const incrementStardate = (stationState: StationState): StationState => {
+    return { ...stationState,
+        stardate: stationState.stardate + 1 };
+}
+
+const addFunding = (stationState: StationState): StationState => {
+    return { ...stationState, 
+        credits: stationState.credits + stationState.funding };
+}
 
 
 

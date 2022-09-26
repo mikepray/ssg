@@ -13,8 +13,6 @@ export const baseStation = {
   air: 0,
   food: 0,
   credits: 0,
-  dockRings: [{}, {}],
-  vesselQueue: [],
   funding: 0,
   crewSalary: 0,
   daysWithoutFood: 0,
@@ -30,10 +28,15 @@ export const baseStation = {
       mod.name === "Air Recycler"
   ),
   previouslyVisitedVesselNames: [],
+  dockingPorts: 0,
+  vessels: [],
   apply: function (props: Partial<StationState>): StationState {
     return { ...this, ...props };
   },
-  applyToState: function (fn: (state: StationState) => StationState): StationState {
-    return fn(this);
+  applyToState: function (fn: (state: StationState) => Partial<StationState>): StationState {
+    return { ...this, ...fn(this)};
+  },
+  applyToStateAsync: async function (fn: (state: StationState) => Promise<Partial<StationState>>): Promise<StationState> {
+    return { ...this, ...await fn(this)};
   },
 };

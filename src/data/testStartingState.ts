@@ -15,11 +15,8 @@ export const testingStationState: StationState = {
   air: 100,
   food: 100,
   credits: 1000,
-  dockRings: [
-    { vessel: vessels.find((vessel) => vessel.name === "Zeelandia") },
-    {},
-  ],
   funding: 10,
   crewSalary: 2,
   belongsToFaction: "New Hague Merchants",
+  dockingPorts: 2,
 };

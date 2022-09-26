@@ -1,10 +1,12 @@
 import chalk from "chalk";
 import { log } from "console";
+import { getRandomValues } from "crypto";
 import prompts, { Answers } from "prompts";
+import { testingStationState } from "../data/testStartingState";
 import { StationState, StationModule } from "../types";
 import { getUnassignedCrew, getAssignedCrew } from "../utils";
 
-export async function assignCrewMenu(stationState: StationState): Promise<StationModule | undefined> {
+export async function assignCrewMenu(stationState: StationState): Promise<StationState> {
     console.clear();
     const unassignedCrew = getUnassignedCrew(stationState);
     const moduleName: Answers<string> = await prompts({
@@ -38,8 +40,12 @@ export async function assignCrewMenu(stationState: StationState): Promise<Statio
         })
         // set the crew assignment to the module
         if (crewAssignmentForModule.value >= 0) {
-            moduleToAssign.crewApplied = crewAssignmentForModule.value;
+            return stationState.apply({
+                stationModules: stationState.stationModules.map(m => m.name === moduleToAssign.name 
+                    ? m.apply({crewApplied: crewAssignmentForModule.value})
+                    : m),
+            });
         }
     }
-    return moduleToAssign;
+    return stationState;
 }

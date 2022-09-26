@@ -1,6 +1,6 @@
 import { Answers } from "prompts";
 
-export interface StationState {
+export type StationState = {
     stationName: string,
     baseStation: string,
     location: string,
@@ -13,8 +13,7 @@ export interface StationState {
     credits: number,
     daysWithoutFood: number,
     daysSinceVesselSpawn: number,
-    dockRings: DockRing[],
-    vesselQueue: Vessel[],
+    vessels: Vessel[],
     funding: number,
     crewSalary: number,
     stationModules: StationModule[],
@@ -24,9 +23,13 @@ export interface StationState {
         name: string,
         stardateSinceLastVisited: number,
     }[],
+    dockingPorts: number,
+    apply: (stationState: Partial<StationState>) => StationState,
+    applyToState: (fn: (stationState: StationState) => Partial<StationState>) => StationState,
+    applyToStateAsync: (fn: (stationState: StationState) => Promise<Partial<StationState>>) => Promise<StationState>,
 }
 
-export interface StationModule {
+export type StationModule = {
     name: string,
     description: string,
     /* resource cost per day. positive gains resource, negative spends resource */
@@ -42,13 +45,16 @@ export interface StationModule {
     airStorage: number,
     foodStorage: number,
     creditPurchaseCost: number,
+    apply: (stationModule: Partial<StationModule>) => StationModule,
+    applyToState: (fn: (stationModule: StationModule) => Partial<StationModule>) => StationModule,
+    applyToStateAsync:(fn: (stationModule: StationModule) => Partial<StationModule>) => StationModule,
 }
 
-export interface DockRing {
+export type DockRing = {
     vessel?: Vessel
 }
 
-export interface Vessel {
+export type Vessel = {
     name: string,
     class: string,
     faction: string,
@@ -67,30 +73,34 @@ export interface Vessel {
     credits: number,
     morale: number, // the morale boost (or penalty) to the stations' crew while the vessel is docked
     queueTolerance: number, // the amount in days the vessel will tolerate staying in the docking queue before leaving the area
-    dockingDaysRequested: number, // the number of days the vessel wants to stay docked
+    dockingDaysRequested: number, // the number of days the vessel wants to stay docked. Also used to track how long a vessel has been docked. when zero, vessel will depart
     /* the vessel's sensitivity to docking fees. 1 = fully elastic, 0 = inelastic. The more elastic, the less likely the vessel will
     be willing to dock with the station if it charges higher docking fees */
     dockingFeePriceElasticity: number, 
-    // Warping In & Docking
-    // timeInQueue = 1 == Warping In
-    // timeInQueue = 2 == Nearby
-    // timeInQueue > 2 == Waiting to dock
-    
-    // Undocking and Warping Out
-    // timeInQueue = -2 == Undocked and nearby
-    // timeInQueue = -1 == Warping out
     timeInQueue: number, 
     rarity: number, // -1 is never, 0 is extremely common, 1 is extremely rare
+    dockingStatus: VesselDockingStatus | undefined, 
+    apply: (vessel: Partial<Vessel>) => Vessel,
+    applyToState: (fn: (vessel: Vessel) => Partial<Vessel>) => Vessel,
+    applyToStateAsync: (fn: (vessel: Vessel) => Partial<Vessel>) => Vessel,
 }
 
-export interface Faction {
+export enum VesselDockingStatus {
+    WarpingIn,
+    NearbyWaitingToDock,
+    NearbyWaitingToLeave,
+    Docked,
+    WarpingOut,
+}
+    
+export type Faction = {
     name: string,
     description: string,
     favor: number, // -1 means the player cannot gain or lose favor with this faction (e.g., unaligned, aliens)
     hexColor: string,
 }
 
-export interface StartingOptions {
+export type StartingOptions = {
   stationName?: Answers<string>;
   baseStation?: Answers<string>;
   location?: Answers<string>;

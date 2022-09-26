@@ -1,16 +1,22 @@
 import prompts, { Answers } from "prompts";
 import chalk from "chalk";
-import { Log, StationState, Vessel } from "./types";
+import { Log, StationModule, StationState, Vessel, VesselDockingStatus } from "./types";
 import { addWithCeilingAndFloor, addWithFloor, calculateStorageCeilings, d100, d20, dN, getUnassignedCrew, getVesselColor, progressBar, subtractWithFloor } from "./utils";
 import { assignCrewMenu } from "./menus/assignCrewMenu";
 import { dockingMenu } from "./menus/dockingMenu";
 import { moduleMenu } from "./menus/moduleMenu";
 import { vesselsNearbyMenu } from "./menus/vesselsNearbyMenu";
 import { vessels } from "./data/vessels";
+import { baseModule } from "./data/stationModules";
+import { factions } from "./data/factions";
 
 export async function gameLoop(stardate: number, stationState: StationState, log: Log) {
+    if (stationState.crew === 0) {
+        throw new Error("Game Over - you have no crew left!")
+    }
     printStationStatus(stationState, log);
     const ceilings = calculateStorageCeilings(stationState);
+    
     // wait for input
     const input = await prompts({
         type: "select",
@@ -56,177 +62,193 @@ export async function gameLoop(stardate: number, stationState: StationState, log
     if (input.value === 'modules') {
         await moduleMenu(stationState);
     } else if (input.value === 'docking') {
-        await dockingMenu(stationState, log);
+        stationState = await dockingMenu(stationState, log);
     } else if (input.value === 'vessels') {
         await vesselsNearbyMenu(stationState);
     } else if (input.value === 'crew') {
-        const moduleWithReassignedCrew = await assignCrewMenu(stationState);
-        if (moduleWithReassignedCrew !== undefined) {
-            const index = stationState.stationModules.findIndex(mod => mod.name === moduleWithReassignedCrew?.name);
-            stationState.stationModules[index] = moduleWithReassignedCrew;
-        }
+        stationState = await assignCrewMenu(stationState);
     } else if (input.value === 'wait') {
-        stardate++;
-        // gain/spend resources
-        stationState.credits += stationState.funding;
-        // for every crew, spend 1 air and 1 food and spend their salary in credits
-        stationState.credits = subtractWithFloor(stationState.credits, stationState.crew * stationState.crewSalary, 0);
-        stationState.air = subtractWithFloor(stationState.air, stationState.crew, 0);
-        stationState.food = subtractWithFloor(stationState.food, stationState.crew, 0);
-
-        // if there's no food, reduce morale
-        if (stationState.food <= 0) {
-            stationState.morale = subtractWithFloor(stationState.morale, 10, 0);
-            stationState.daysWithoutFood++;
-            if (stationState.daysWithoutFood > 5) {
-                // if it's been too long without food, reduce crew!
-                stationState.crew = subtractWithFloor(stationState.crew, 1, 0);
-                // unassign a crew from a module
-                const module = stationState.stationModules.find(val => val.crewApplied > 0);
-                if (module !== undefined) {
-                    module.crewApplied -= 1;
-                    const index = stationState.stationModules.findIndex(mod => {
-                        mod.name === module.name;
-                    });
-                    stationState.stationModules[index] = module;
-
-                }                
+        stationState = stationState
+          .applyToState(incrementStardate)
+          .applyToState(addFunding)
+          .applyToState(spendResourcesPerCrew)
+          .applyToState(reduceMoraleWithoutFood)
+          .applyToState(reduceCrewWithoutFood)
+          // if there's no credits, reduce morale
+          .applyToState((station) =>
+            station.credits <= 0
+              ? { morale: subtractWithFloor(station.morale, 2, 0) }
+              : station
+          )
+          // if there's no air, reduce crew!
+          .applyToState((station) =>
+            station.air === 0
+              ? reduceModuleCrew(
+                  station.applyToState((stat) => {
+                    return { crew: subtractWithFloor(stat.crew, 1, 0) };
+                  }),
+                  station.stationModules.find((val) => val.crewApplied > 0)
+                )
+              : station
+          ).applyToState((station) => {
+            const reducedModuleResources = station.stationModules.reduce((previousValue, module) => {
+                // reduce the modules' resource generation/consumption
+                if (module.crewApplied >= module.crewRequired && station.power + module.power >= 0) {
+                    return {
+                        ...baseModule,
+                        power: previousValue.power + module.power,
+                        air: previousValue.air + module.air,
+                        food: previousValue.food + module.food,
+                        morale: previousValue.morale + module.morale,
+                        credits: previousValue.credits + module.credits,
+                    };
+                } 
+                return previousValue;
+            }, baseModule);
+            return {
+                // apply the reduced values to the station
+                power: addWithCeilingAndFloor(station.power, reducedModuleResources.power, 0, ceilings.powerStorageCeiling),
+                air: addWithCeilingAndFloor(station.air, reducedModuleResources.air, 0, ceilings.airStorageCeiling),
+                food: addWithCeilingAndFloor(station.food, reducedModuleResources.food, 0, ceilings.foodStorageCeiling),
+                morale: addWithCeilingAndFloor(station.morale, reducedModuleResources.morale, 0, 100),
+                credits: addWithFloor(station.credits, reducedModuleResources.credits, 0),
             }
-        } else {
-            stationState.daysWithoutFood = 0;
-        }
-
-        // if there's no credits, reduce morale
-        if (stationState.credits <= 0) {
-            stationState.morale = subtractWithFloor(stationState.morale, 2, 0);
-        }
-
-        // if there's no air, reduce crew!
-        if (stationState.air === 0) {
-            stationState.crew = subtractWithFloor(stationState.crew, 1, 0) 
-            // unassign crew from a module
-            const module = stationState.stationModules.find(val => val.crewApplied > 0);
-                if (module !== undefined) {
-                    module.crewApplied -= 1;
-                    const index = stationState.stationModules.findIndex(mod => {
-                        mod.name === module.name;
-                    });
-                    stationState.stationModules[index] = module;
-
-                }     
-        }
-        if (stationState.crew === 0) {
-            throw new Error("Game Over - you have no crew left!")
-        }
-
-        // iterate through station modules and gain/spend resources
-        stationState.stationModules.forEach(module => {
-            if (module.crewApplied >= module.crewRequired && stationState.power + module.power >= 0) {
-                stationState.power = addWithCeilingAndFloor(stationState.power, module.power, 0, ceilings.powerStorageCeiling);
-                stationState.air = addWithCeilingAndFloor(stationState.air, module.air, 0, ceilings.airStorageCeiling);
-                stationState.food = addWithCeilingAndFloor(stationState.food, module.food, 0, ceilings.foodStorageCeiling);
-                // morale has a ceiling of 100
-                stationState.morale = addWithCeilingAndFloor(stationState.morale, module.morale, 0, 100);
-                // there is no ceiling to credits
-                stationState.credits = addWithFloor(stationState.credits, module.credits, 0);
-            }
-        })
-
-        // iterate through vessels in the docking queue. vessels with negative timeInQueue increment until zero. -2 is in the queue and leaving, and -1 is warping out
-        // +1 is warping in, +2 is joining the queue
-        
-        // Warping In & Docking
-        // timeInQueue = 1 == Warping In
-        // timeInQueue = 2 == Nearby
-        // timeInQueue > 2 == Waiting to dock
-        
-        // Undocking and Warping Out
-        // timeInQueue = -2 == Undocked and nearby
-        // timeInQueue = -1 == Warping out
-
-        stationState.vesselQueue.forEach((vessel) => {
-          if (vessel.timeInQueue === -1) {
-            // un-dock the vessel
-            stationState.vesselQueue = stationState.vesselQueue.filter(
-              (filter) => filter.name !== vessel.name
-            );
-          }
-          if (vessel.timeInQueue >= 2) {
-              // attempt to dock at an available docking ring
-            let dockRing = stationState.dockRings.find(
-                (dock) => dock.vessel === undefined
-            );
-            // vessels with dockingDaysRequested = -1 never want to dock (e.g. aliens)
-            if (dockRing && vessel.dockingDaysRequested > 0) {
-              dockRing.vessel = vessel;
-              stationState.vesselQueue = stationState.vesselQueue.filter(
-                (filter) => filter.name !== vessel.name
-              );
-            } else {
-              // the vessel can't find a docking ring
-              if (vessel.queueTolerance == 0) {
-                // if the vessel's queue tolerance reaches zero, it will warp out and the player loses favor with the vessel's faction
-                let vesselFaction = stationState.factions.find(
-                  (faction) => faction.name === vessel.faction
-                );
-                if (vesselFaction) {
-                  subtractWithFloor(vesselFaction.favor, 1, 0);
+        }).applyToState(station => {
+            let dockingPortsOpen = station.dockingPorts - station.vessels.filter(v => v.dockingStatus === VesselDockingStatus.Docked).length;
+            return { vessels: station.vessels.map(vessel => {
+                if (vessel.dockingStatus === VesselDockingStatus.WarpingIn) {
+                    // vessels warping in start waiting to dock
+                    return vessel.apply({dockingStatus: VesselDockingStatus.NearbyWaitingToDock});
+                } else if (dockingPortsOpen > 0 && vessel.dockingStatus === VesselDockingStatus.NearbyWaitingToDock && vessel.dockingDaysRequested > 0) {
+                    // take vessels waiting to dock and dock them, if possible, and if they want to dock
+                    dockingPortsOpen--;
+                    return vessel.apply({dockingStatus: VesselDockingStatus.Docked});
+                } else if (dockingPortsOpen === 0 && vessel.dockingStatus === VesselDockingStatus.NearbyWaitingToDock && vessel.dockingDaysRequested > 0) {
+                    // vessel can't dock because no ports were open. increment time-in-queue
+                    return vessel.applyToState(v => {return {timeInQueue: v.timeInQueue + 1}});
+                } else if (vessel.dockingStatus === VesselDockingStatus.NearbyWaitingToDock && vessel.timeInQueue > vessel.queueTolerance) {
+                    // vessels which cant dock after a number of turns that equal their queue tolerance must leave
+                    return vessel.apply({dockingStatus: VesselDockingStatus.NearbyWaitingToLeave});
+                } else if (vessel.dockingStatus === VesselDockingStatus.Docked && vessel.dockingDaysRequested > 0) {
+                    // vessels which are docked decrement their dockingDaysRequested, which tracks how long they've been docked
+                    return vessel.applyToState(v => {return {dockingDaysRequested: v.dockingDaysRequested - 1}});
+                } else if (vessel.dockingStatus === VesselDockingStatus.Docked && vessel.dockingDaysRequested === 0) {
+                    // un-dock vessels that have been docked as long as they want to
+                    dockingPortsOpen++;
+                    return vessel.apply({dockingStatus: VesselDockingStatus.NearbyWaitingToLeave});
+                } else if (vessel.dockingStatus === VesselDockingStatus.NearbyWaitingToLeave) {
+                    // vessels that have waited one turn to leave warp out
+                    return vessel.apply({dockingStatus: VesselDockingStatus.WarpingOut})
+                } else if (vessel.dockingStatus === VesselDockingStatus.WarpingOut) {
+                    // vessels that have warped out are gone (removed from station state elsewhere)
+                    return vessel.apply({dockingStatus: undefined});
                 }
-                vessel.timeInQueue = -2;
-              }
-              vessel.queueTolerance--;
-            }
-          }
-          vessel.timeInQueue++;
-        });
-
-        //iterate through docked vessels and decrement their dockingDaysRequested. if any get to zero, they depart
-        stationState.dockRings.forEach(dockRing => {
-            if (dockRing.vessel !== undefined) {
-                let vessel = dockRing.vessel;
-
-                if (vessel?.dockingDaysRequested === 0) {
-                    dockRing.vessel = undefined;
-                    vessel.timeInQueue = -2;
-                    stationState.vesselQueue.push(vessel)
-                } else {
-                    vessel.dockingDaysRequested--;
+                return vessel;
+            })};
+        }).applyToState(station => {
+            // remove all vessels with no docking status from the station state
+            return { vessels: station.vessels.filter(value => value.dockingStatus !== undefined) }
+        }).applyToState(station => {
+            // player loses favor with the factions of vessels that reached their time in queue and had to warp out 
+            const vessel = station.vessels.find(v => v.timeInQueue > v.queueTolerance);
+            return {factions: factions.map(faction => 
+                faction.name === vessel?.faction && faction.favor !== -1 // player cannot gain or lose factions with -1 favor 
+                ? { ...faction, favor: faction.favor - 1}
+                : faction
+            )};
+        }).applyToState(station => {
+            // player loses favor with the factions of vessels that were evicted from dock
+            const vessel = station.vessels.find(v => v.dockingStatus === VesselDockingStatus.NearbyWaitingToLeave && v.dockingDaysRequested > 0);
+            return {factions: factions.map(faction => 
+                faction.name === vessel?.faction && faction.favor !== -1
+                ? { ...faction, favor: faction.favor - 1}
+                : faction
+            )};
+        }).applyToState(station => {
+            // player gains favor with the factions of vessels that reached their docking days requested and weren't evicted
+            const vessel = station.vessels.find(v => v.dockingStatus === VesselDockingStatus.NearbyWaitingToLeave && v.dockingDaysRequested === 0);
+            return {factions: factions.map(faction => 
+                faction.name === vessel?.faction && faction.favor !== -1
+                ? { ...faction, favor: faction.favor + 1}
+                : faction
+            )};
+        }).applyToState(station => {
+            // add spawned vessels
+            const incomingVessel = spawnVessel(stationState);
+            if (incomingVessel) {
+                return {
+                    previouslyVisitedVesselNames: station.previouslyVisitedVesselNames.concat({
+                        name: incomingVessel.name, 
+                        stardateSinceLastVisited: stationState.stardate}),
+                    daysSinceVesselSpawn: 0,
+                    vessels: station.vessels.concat(incomingVessel.apply({timeInQueue: 0, dockingStatus: VesselDockingStatus.WarpingIn}))
                 }
             }
+            return {  };
+        }).applyToState(station => {
+            // allow previously visited vessels to revisit the station after at least 11 days
+            return {
+                previouslyVisitedVesselNames: station.previouslyVisitedVesselNames.filter(vessel => 
+                    vessel.stardateSinceLastVisited + 10 + d20() >= station.stardate)
+            }
         })
-
-        // // incoming vessels
-        // if (stardate == 2) {
-        //     let bigFred = vessels.find(vessel => vessel.name === 'Big Fred');
-        //     if (bigFred) {
-        //         bigFred.timeInQueue = 1;
-        //         stationState.vesselQueue.push(bigFred);
-        //     }
-        // }
-
-        // if (stardate == 6) {
-        //     let alien = vessels.find(vessel => vessel.name === '∆');
-        //     if (alien) {
-        //         alien.timeInQueue = 1;
-        //         stationState.vesselQueue.push(alien);
-        //     }
-        // }        
-
-        const incomingVessel = spawnVessel(stationState);
-        if (incomingVessel) {
-            incomingVessel.timeInQueue = 1;
-            stationState.vesselQueue.push(incomingVessel);
-        }
-
-        // allow previously visited vessels to revisit the station after at least 11 days
-        stationState.previouslyVisitedVesselNames = stationState.previouslyVisitedVesselNames.filter(vessel => 
-            vessel.stardateSinceLastVisited + 10 + d20() >= stationState.stardate);
         
         // problem loop
-        
-        stationState.stardate++;
     }
     gameLoop(stardate, stationState, log);
+}
+
+const spendResourcesPerCrew = (stationState: StationState): Partial<StationState> => {
+    return { 
+        credits: subtractWithFloor(stationState.credits, stationState.crew * stationState.crewSalary, 0),
+        air: subtractWithFloor(stationState.air, stationState.crew, 0),
+        food: subtractWithFloor(stationState.food, stationState.crew, 0)
+    };
+}
+
+const reduceMoraleWithoutFood = (stationState: StationState): Partial<StationState> => {
+     // if there's no food, reduce morale
+     if (stationState.food <= 0) {
+        return { 
+            morale: subtractWithFloor(stationState.morale, 10, 0),
+            daysWithoutFood: stationState.daysWithoutFood + 1
+        };
+        
+    }
+    return { daysWithoutFood: 0 };
+}
+
+const reduceCrewWithoutFood = (stationState: StationState): Partial<StationState> => {
+    if (stationState.daysWithoutFood > 5) {
+        // if it's been too long without food, reduce crew!
+        return reduceModuleCrew(
+            stationState.applyToState(station => { return { crew: station.crew - 1} }),
+            stationState.stationModules.find(val => val.crewApplied > 0)
+        );
+    }
+    return stationState;
+}
+
+const reduceModuleCrew = (stationState: StationState, module: StationModule | undefined): StationState => {
+    if (module) {
+        return stationState.applyToState(state => {
+            return { 
+                stationModules: state.stationModules.map(mod => 
+                mod.name === module.name
+                ? module.applyToState(m => {return { crewApplied: m.crewApplied - 1 }}) 
+                : mod)
+            };
+        });
+    }
+    return stationState
+}
+
+const incrementStardate = (stationState: StationState): Partial<StationState> => {
+    return { stardate: stationState.stardate + 1 };
+}
+
+const addFunding = (stationState: StationState): Partial<StationState> => {
+    return { credits: stationState.credits + stationState.funding };
 }
 
 export function printStationStatus(stationState: StationState, log: Log) {
@@ -255,24 +277,31 @@ export function printStationStatus(stationState: StationState, log: Log) {
     log(`\n${chalk.bold.bgGrey(` Vessels docked: `)}`);
 
     let vesselString = '';
-    stationState.dockRings.forEach(dockRing => {
-        vesselString += ` > ${dockRing.vessel === undefined ? chalk.gray(`None`) : chalk.hex(getVesselColor(dockRing.vessel, stationState.factions))(`${dockRing.vessel.name}`)}\n`;
+    stationState.vessels.
+        filter(vessel => vessel.dockingStatus === VesselDockingStatus.Docked).
+        forEach(vessel => {
+        vesselString += ` > ${vessel === undefined ? chalk.gray(`None`) : chalk.hex(getVesselColor(vessel, stationState.factions))(`${vessel.name}`)}\n`;
     });
     log(vesselString)
     let nearbyVesselString = '';
-    stationState.vesselQueue.forEach(vessel => {
-        if (vessel.timeInQueue == -1) {
-            nearbyVesselString += chalk.italic.cyan('<Outgoing Warp Signature>\n')
-        } else if (vessel.timeInQueue == 1) {
-            nearbyVesselString += chalk.italic.cyan('<Incoming Warp Signature>\n')
-        } else {
+    stationState.vessels.
+        filter(vessel => vessel.dockingStatus === VesselDockingStatus.NearbyWaitingToDock || vessel.dockingStatus === VesselDockingStatus.NearbyWaitingToLeave).
+        forEach(vessel => {
             nearbyVesselString += chalk.hex(getVesselColor(vessel, stationState.factions))(`${vessel.name} \n`);
-        }
-    })
+    });
+    stationState.vessels.
+        filter(vessel => vessel.dockingStatus === VesselDockingStatus.WarpingOut).
+        forEach(vessel => {
+            nearbyVesselString += chalk.italic.cyan('<Outgoing Warp Signature>\n')
+    });
+    stationState.vessels.
+        filter(vessel => vessel.dockingStatus === VesselDockingStatus.WarpingIn).
+        forEach(vessel => {
+            nearbyVesselString += chalk.italic.cyan('<Incoming Warp Signature>\n')
+    });
     log(' ');
     log(`${chalk.bold.bgGrey(` Vessels nearby: `)}`);
     log(nearbyVesselString !== '' ? nearbyVesselString : chalk.gray(' None\n'));
-
 }
 
 function spawnVessel(stationState: StationState): Vessel | undefined {
@@ -284,14 +313,7 @@ function spawnVessel(stationState: StationState): Vessel | undefined {
         const candidateVesselsToSpawn = vessels.filter(vessel => 
             vessel.rarity > 0 && vessel.rarity < rarity &&
             !vesselPreviouslyVisited(vessel.name, stationState.previouslyVisitedVesselNames) );
-
         vessel = candidateVesselsToSpawn[dN(candidateVesselsToSpawn.length) - 1];
-    
-        if (vessel) {
-            stationState.previouslyVisitedVesselNames.push(
-                {name: vessel.name, stardateSinceLastVisited: stationState.stardate});
-            stationState.daysSinceVesselSpawn = 0;
-        }
     }
     return vessel;
 }

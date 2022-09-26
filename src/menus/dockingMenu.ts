@@ -1,40 +1,41 @@
 import chalk from "chalk";
-import prompts, { Answers } from "prompts";
+import prompts, { Answers, Choice } from "prompts";
+import { vessels } from "../data/vessels";
 import { printStationStatus } from "../game";
-import { Log, StationState, Vessel } from "../types";
+import { Log, StationState, Vessel, VesselDockingStatus } from "../types";
 import { getVesselColor } from "../utils";
 
-export async function dockingMenu(stationState: StationState, log: Log) {
+export async function dockingMenu(stationState: StationState, log: Log): Promise<StationState> {
     console.clear();
     printStationStatus(stationState, log);
+
+    const choices: Choice[] = stationState.vessels.filter(v => v.dockingStatus === VesselDockingStatus.Docked).map(vessel => {
+        return {
+            title: `${chalk.hex(getVesselColor(vessel, stationState.factions))(vessel.name)}`,
+            value: vessel.name
+        };
+    });
+
+    if (choices.length < stationState.dockingPorts) {
+        for (let i = 0; i < stationState.dockingPorts - choices.length; i++) {
+            choices.push({
+                title: 'Nothing docked'
+            });
+        }
+    }
+
     const chooseVesselAnswer: Answers<string> = await prompts({
         type: "select",
         name: "value",
         message: `Choose a docked vessel to manage`,
-        choices: stationState.dockRings.map(dockRing => {
-            if (dockRing.vessel === undefined) {
-                return {
-                    title: 'Dock Ring: None',
-                    value: 'none'
-                }
-            }
-            return {
-                title: `Dock Ring: ${chalk.hex(getVesselColor(dockRing.vessel, stationState.factions))(dockRing.vessel.name)}`,
-                value: dockRing.vessel?.name
-            };
-        }),
+        choices: choices,
     });
 
-    const dockRing = stationState.dockRings.find(dockRing => dockRing.vessel?.name === chooseVesselAnswer.value);
-
-    if (dockRing === undefined || dockRing.vessel === undefined) {
-        log(` There's nothing here... `);
-        return;
-    } else {
-        const tradingVessel = dockRing.vessel;
+    const vessel = stationState.vessels.find(v => v.name === chooseVesselAnswer.value)
+    if (vessel !== undefined) {
         console.clear();
         printStationStatus(stationState, log);
-        log(`This is the ${tradingVessel.name}, a ${tradingVessel.class} starship. It's affiliated with the ${ stationState.factions.find(faction => faction.name === tradingVessel?.faction)?.name} `)
+        log(`This is the ${vessel.name}, a ${vessel.class} starship. It's affiliated with the ${ stationState.factions.find(faction => faction.name === vessel.faction)?.name} `)
 
         const manageVesselAnswer: Answers<string> = await prompts({
             type: "select",
@@ -59,102 +60,140 @@ export async function dockingMenu(stationState: StationState, log: Log) {
         });
 
         if (manageVesselAnswer.value === 'trade') {
-            let tradeAnswer: Answers<string>;
-            do {    
-                const choices: prompts.Choice[] = [ ];
-
-                if (tradingVessel.tradesPower > 0) {
-                    choices.push({
-                        title: ` Buy Power for ${tradingVessel.tradesPowerForCredits}`,
-                        value: `buyPower`,
-                    });
-                } 
-                if (tradingVessel.tradesPower < 0) {
-                    choices.push({
-                        title: ` Sell Power for ${tradingVessel.tradesPowerForCredits}`,
-                        value: `sellPower`,
-                    });
+            return stationState.applyToStateAsync(async station => {
+                const tradeMutation = await trade(station, vessel, log)
+                if (tradeMutation !== undefined) {
+                    return {
+                        ...tradeMutation.mutateStation,
+                        vessels: station.vessels.map(v => v.name === tradeMutation.mutateVessel.name ? tradeMutation.mutateVessel : v)
+                    }
                 }
-                if (tradingVessel.tradesAir > 0) {
-                    choices.push({
-                        title: ` Buy Air for ${tradingVessel.tradesAirForCredits}`,
-                        value: `buyAir`,
-                    });
-                }     
-                if (tradingVessel.tradesAir < 0) {
-                    choices.push({
-                        title: ` Sell Air for ${tradingVessel.tradesAirForCredits}`,
-                        value: `sellAir`,
-                    });
-                }
-                if (tradingVessel.tradesFood > 0) {
-                    choices.push({
-                        title: ` Buy Food for ${tradingVessel.tradesFoodForCredits}`,
-                        value: `buyFood`,
-                    });
-                }
-                if (tradingVessel.tradesFood < 0) {
-                    choices.push({
-                        title: ` Sell Food for ${tradingVessel.tradesFoodForCredits}`,
-                        value: `sellFood`,
-                    });
-                }
-
-                choices.push({
-                    title: `Back`,
-                    value: `back`,
+                return { }
+            })
+        } else if (manageVesselAnswer.value === 'evict') {
+            const cont = await prompts({
+                type: 'toggle',
+                name: 'value',
+                active: 'yes',
+                inactive: 'no',
+                message: `Really evict ${vessel.name} from the station? Your station will lose favor with the ${vessel.faction} `,
+                initial: false
+            });
+            if (cont.value === true) {
+                return stationState.applyToState(station => {
+                    return { vessels: station.vessels.map(v => v.name === vessel.name
+                        ? vessel.apply({dockingStatus: VesselDockingStatus.NearbyWaitingToLeave})
+                        : vessel) }
                 })
-
-                let airStorageCeiling: number = 0;
-                let powerStorageCeiling: number = 0;
-                let foodStorageCeiling: number = 0;
-
-                stationState.stationModules.forEach(module => {
-                    airStorageCeiling += module.airStorage;
-                    powerStorageCeiling += module.powerStorage;
-                    foodStorageCeiling += module.foodStorage;
-                });
-                printStationStatus(stationState, log);
-
-                // trade menu
-                tradeAnswer = await prompts({
-                    type: "select",
-                    name: "value",
-                    message: `Trade with the ${tradingVessel.name}`,
-                    choices: choices,
-                });
-
-                if (tradeAnswer.value !== 'back') {
-                    if (tradeAnswer.value === 'buyPower') {
-                        await buyResourceMenu(stationState, tradingVessel, powerStorageCeiling, 'power', () => tradingVessel.tradesPower, () => tradingVessel.tradesPowerForCredits, () => stationState.power);
-                    }
-                    if (tradeAnswer.value === 'buyAir') {
-                        await buyResourceMenu(stationState, tradingVessel, airStorageCeiling, 'air', () => tradingVessel.tradesAir, () => tradingVessel.tradesAirForCredits, () => stationState.air);
-                    }
-                    if (tradeAnswer.value === 'buyFood') {
-                        await buyResourceMenu(stationState, tradingVessel, foodStorageCeiling, 'food', () => tradingVessel.tradesFood, () => tradingVessel.tradesFoodForCredits, () => stationState.food);
-                    }
-                    if (tradeAnswer.value === 'sellPower') {
-                        await sellResourceMenu(stationState, tradingVessel, powerStorageCeiling, 'power', () => tradingVessel.tradesPower, () => tradingVessel.tradesPowerForCredits, () => stationState.power);
-                    }
-                    if (tradeAnswer.value === 'sellAir') {
-                        await sellResourceMenu(stationState, tradingVessel, airStorageCeiling, 'air', () => tradingVessel.tradesAir, () => tradingVessel.tradesAirForCredits, () => stationState.air);
-                    }
-                    if (tradeAnswer.value === 'sellFood') {
-                        await sellResourceMenu(stationState, tradingVessel, foodStorageCeiling, 'food', () => tradingVessel.tradesFood, () => tradingVessel.tradesFoodForCredits, () => stationState.food);
-                    }
-                }
-            } while (tradeAnswer?.value !== 'back' );
+             }
         }
+
     }
+    return stationState;
 }
 
-async function buyResourceMenu(stationState: StationState, tradingVessel: Vessel, resourceStorageCeiling: number, resource: string, tradesResource: () => number, tradesResourceForCredits: () => number, stationResource: () => number) {
+type TradeMutation = {
+    mutateStation: Partial<StationState>,
+    mutateVessel: Vessel,
+}
+
+async function trade(stationState: StationState, vessel: Vessel, log: Log): Promise<TradeMutation> {
+    let tradeAnswer: Answers<string>;
+    const choices: prompts.Choice[] = [ ];
+
+    if (vessel.tradesPower > 0) {
+        choices.push({
+            title: `Buy Power for ${vessel.tradesPowerForCredits}`,
+            value: `buyPower`,
+        });
+    } 
+    if (vessel.tradesPower < 0) {
+        choices.push({
+            title: `Sell Power for ${vessel.tradesPowerForCredits}`,
+            value: `sellPower`,
+        });
+    }
+    if (vessel.tradesAir > 0) {
+        choices.push({
+            title: `Buy Air for ${vessel.tradesAirForCredits}`,
+            value: `buyAir`,
+        });
+    }     
+    if (vessel.tradesAir < 0) {
+        choices.push({
+            title: `Sell Air for ${vessel.tradesAirForCredits}`,
+            value: `sellAir`,
+        });
+    }
+    if (vessel.tradesFood > 0) {
+        choices.push({
+            title: `Buy Food for ${vessel.tradesFoodForCredits}`,
+            value: `buyFood`,
+        });
+    }
+    if (vessel.tradesFood < 0) {
+        choices.push({
+            title: `Sell Food for ${vessel.tradesFoodForCredits}`,
+            value: `sellFood`,
+        });
+    }
+
+    choices.push({
+        title: `Back`,
+        value: `back`,
+    })
+
+    let airStorageCeiling: number = 0;
+    let powerStorageCeiling: number = 0;
+    let foodStorageCeiling: number = 0;
+
+    stationState.stationModules.forEach(module => {
+        airStorageCeiling += module.airStorage;
+        powerStorageCeiling += module.powerStorage;
+        foodStorageCeiling += module.foodStorage;
+    });
+    printStationStatus(stationState, log);
+
+    // trade menu
+    tradeAnswer = await prompts({
+        type: "select",
+        name: "value",
+        message: `Trade with the ${vessel.name}`,
+        choices: choices,
+    });
+
+    if (tradeAnswer.value !== 'back') {
+        if (tradeAnswer.value === 'buyPower') {
+            return await buyResourceMenu(stationState, vessel, powerStorageCeiling, 'power', () => vessel.tradesPower, () => vessel.tradesPowerForCredits, () => stationState.power);
+        }
+        if (tradeAnswer.value === 'buyAir') {
+            return await buyResourceMenu(stationState, vessel, airStorageCeiling, 'air', () => vessel.tradesAir, () => vessel.tradesAirForCredits, () => stationState.air);
+        }
+        if (tradeAnswer.value === 'buyFood') {
+            return await buyResourceMenu(stationState, vessel, foodStorageCeiling, 'food', () => vessel.tradesFood, () => vessel.tradesFoodForCredits, () => stationState.food);
+        }
+        if (tradeAnswer.value === 'sellPower') {
+            return await sellResourceMenu(stationState, vessel, powerStorageCeiling, 'power', () => vessel.tradesPower, () => vessel.tradesPowerForCredits, () => stationState.power);
+        }
+        if (tradeAnswer.value === 'sellAir') {
+            return await sellResourceMenu(stationState, vessel, airStorageCeiling, 'air', () => vessel.tradesAir, () => vessel.tradesAirForCredits, () => stationState.air);
+        }
+        if (tradeAnswer.value === 'sellFood') {
+            return await sellResourceMenu(stationState, vessel, foodStorageCeiling, 'food', () => vessel.tradesFood, () => vessel.tradesFoodForCredits, () => stationState.food);
+        }
+    }
+
+    return { mutateStation: stationState, mutateVessel: vessel };
+}
+
+async function buyResourceMenu(stationState: StationState, tradingVessel: Vessel, resourceStorageCeiling: number, resource: string, tradesResource: () => number, tradesResourceForCredits: () => number, stationResource: () => number): Promise<TradeMutation> {
     let amount = await prompts({
         type: "number",
         name: "valueToBuy",
         message: `Buy ${resource} for ${tradesResourceForCredits()} credits. Vessel has ${tradesResource()} to sell`,
         initial: 1,
+        min: 0,
+        max: tradesResource(),
         validate: value => {
             return value >= 0 && 
                 // can't take more than the vessel has to trade
@@ -162,7 +201,7 @@ async function buyResourceMenu(stationState: StationState, tradingVessel: Vessel
                 // can't take more than the station can store
                 value + stationResource() <= resourceStorageCeiling &&
                 // can't take more than the station can afford
-                stationState.credits - (value * tradesResourceForCredits()) >= 0
+                stationState.credits - (value * tradesResourceForCredits()) >= 0 
         }
 
     });
@@ -174,22 +213,47 @@ async function buyResourceMenu(stationState: StationState, tradingVessel: Vessel
             initial: true
         });
         if (cont.value === true) {
-            // deduct resource from vessel and add resource to station
+            // deduct resource from vessel and add resource to station, deduct credits from station, add credits to vessel
             if (resource === 'power') {
-                tradingVessel.tradesPower -= amount.valueToBuy;
-                stationState.power += amount.valueToBuy;
+                return {
+                    mutateStation: {
+                        power: stationState.power + amount.valueToBuy,
+                        credits: stationState.credits - amount.valueToBuy * tradesResourceForCredits(),
+                    },
+                    mutateVessel: {
+                        ...tradingVessel,
+                        tradesPower: tradingVessel.tradesPower - amount.valueToBuy,
+                        credits: tradingVessel.credits + amount.valueToBuy * tradesResourceForCredits(),
+                    }
+                }
             } else if (resource === 'air') {
-                tradingVessel.tradesAir -= amount.valueToBuy;
-                stationState.air += amount.valueToBuy;
+                return {
+                    mutateStation: {
+                        air: stationState.air + amount.valueToBuy,
+                        credits: stationState.credits - amount.valueToBuy * tradesResourceForCredits(),
+                    },
+                    mutateVessel: {
+                        ...tradingVessel,
+                        tradesAir: tradingVessel.tradesAir - amount.valueToBuy,
+                        credits: tradingVessel.credits + amount.valueToBuy * tradesResourceForCredits(),
+                    }
+                }
             } else if (resource === 'food') {
-                tradingVessel.tradesFood -= amount.valueToBuy;
-                stationState.food += amount.valueToBuy;
+                return {
+                    mutateStation: {
+                        power: stationState.food + amount.valueToBuy,
+                        credits: stationState.credits - amount.valueToBuy * tradesResourceForCredits(),
+                    },
+                    mutateVessel: {
+                        ...tradingVessel,
+                        tradesFood: tradingVessel.tradesFood - amount.valueToBuy,
+                        credits: tradingVessel.credits + amount.valueToBuy * tradesResourceForCredits(),
+                    }
+                }
             }
-
-            // deduct credits from station
-            stationState.credits -= amount.valueToBuy * tradesResourceForCredits();
         }
     }
+    return { mutateStation: { }, mutateVessel: tradingVessel }
 }
 
 async function sellResourceMenu(stationState: StationState, tradingVessel: Vessel, resourceStorageCeiling: number, resource: string, tradesResource: () => number, tradesResourceForCredits: () => number, stationResource: () => number) {
@@ -198,6 +262,8 @@ async function sellResourceMenu(stationState: StationState, tradingVessel: Vesse
         name: "valueToSell",
         message: `Sell ${resource} for ${tradesResourceForCredits()} credits. Vessel can buy ${Math.abs(tradesResource())}`,
         initial: 1,
+        min: 0,
+        max: tradesResource(),
         validate: value => {
             return value >= 0 && 
                 // can't sell more than the vessel can buy
@@ -217,22 +283,45 @@ async function sellResourceMenu(stationState: StationState, tradingVessel: Vesse
             initial: true
         });
         if (cont.value === true) {
-            // add resource to vessel and deduct resource from station
+            // add resource to vessel and deduct resource from station, subtract credits from vessel
             if (resource === 'power') {
-                tradingVessel.tradesPower += amount.valueToSell;
-                stationState.power -= amount.valueToSell;
+                return {
+                    mutateStation: {
+                        power: stationState.power - amount.valueToSell,
+                        credits: stationState.credits + amount.valueToSell * tradesResourceForCredits(),
+                    },
+                    mutateVessel: {
+                        ...tradingVessel,
+                        tradesPower: tradingVessel.tradesPower + amount.valueToSell,
+                        credits: tradingVessel.credits - amount.valueToSell * tradesResourceForCredits(),
+                    }
+                }
             } else if (resource === 'air') {
-                tradingVessel.tradesAir += amount.valueToSell;
-                stationState.air -= amount.valueToSell;
+                return {
+                    mutateStation: {
+                        air: stationState.air - amount.valueToSell,
+                        credits: stationState.credits + amount.valueToSell * tradesResourceForCredits(),
+                    },
+                    mutateVessel: {
+                        ...tradingVessel,
+                        tradesAir: tradingVessel.tradesAir + amount.valueToSell,
+                        credits: tradingVessel.credits - amount.valueToSell * tradesResourceForCredits(),
+                    }
+                }
             } else if (resource === 'food') {
-                tradingVessel.tradesFood += amount.valueToSell;
-                stationState.food -= amount.valueToSell;
+                return {
+                    mutateStation: {
+                        food: stationState.food - amount.valueToSell,
+                        credits: stationState.credits + amount.valueToSell * tradesResourceForCredits(),
+                    },
+                    mutateVessel: {
+                        ...tradingVessel,
+                        tradesFood: tradingVessel.tradesFood + amount.valueToSell,
+                        credits: tradingVessel.credits - amount.valueToSell * tradesResourceForCredits(),
+                    }
+                }
             }
-
-            // add credits to station
-            stationState.credits += amount.valueToSell * tradesResourceForCredits();
-            // deduct credits from vessel
-            tradingVessel.credits -= amount.valueToSell * tradesResourceForCredits();
         }
     }
+    return { mutateStation: { }, mutateVessel: tradingVessel }
 }

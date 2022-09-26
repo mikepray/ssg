@@ -1,17 +1,45 @@
-import { Vessel } from "../types";
+import { Vessel, VesselDockingStatus } from "../types";
+
+export const baseVessel: Vessel = {
+    name: "Base Vessel",
+    class: "Default Vessel",
+    faction: "Unaligned",
+    generatesAir: 0,
+    generatesPower: 0,
+    generatesFood: 0,
+    tradesAir: 0,
+    tradesPower: 0,
+    tradesFood: 0,
+    tradesAirForCredits: 0,
+    tradesPowerForCredits: 0,
+    tradesFoodForCredits: 0,
+    credits: 0,
+    morale: 0,
+    queueTolerance: 0,
+    dockingDaysRequested: 0,
+    dockingFeePriceElasticity: .5,
+    timeInQueue: 0,
+    rarity: -1,
+    dockingStatus: undefined,
+    apply: function (props: Partial<Vessel>): Vessel {
+        return { ...this, ...props };
+    },
+    applyToState: function (fn: (state: Vessel) => Partial<Vessel>): Vessel {
+        return { ...this, ...fn(this)};
+    },
+    applyToStateAsync: function (fn: (state: Vessel) => Partial<Vessel>): Vessel {
+        return { ...this, ...fn(this)};
+    },
+}
 
 export const vessels: Vessel[] = [
     {
+        ...baseVessel,
         name: "Big Fred",
         class: "Space Truck",
         faction: "Space Freighter Union",
-        generatesAir: 0,
-        generatesPower: 0,
-        generatesFood: 0,
-        tradesAir: 0,
         tradesPower: -20,
         tradesFood: 100,
-        tradesAirForCredits: 0,
         tradesPowerForCredits: 10,
         tradesFoodForCredits: 5,
         credits: 200,
@@ -19,41 +47,28 @@ export const vessels: Vessel[] = [
         queueTolerance: 2,
         dockingDaysRequested: 3,
         dockingFeePriceElasticity: .5,
-        timeInQueue: 0,
         rarity: 1,
     },
     {
+        ...baseVessel,
         name: "Zeelandia",
         class: "Space Station Crew Transport",
         faction: "New Hague Merchants",
-        generatesAir: 0,
         generatesPower: 1,
-        generatesFood: 0,
-        tradesAir: 0,
-        tradesPower: 0,
-        tradesFood: 0,
-        credits: 0,
-        tradesAirForCredits: 0,
-        tradesPowerForCredits: 0,
-        tradesFoodForCredits: 0,
-        morale: 0,
         queueTolerance: 1,
         dockingDaysRequested: 5,
         dockingFeePriceElasticity: 0.5,
-        timeInQueue: 0,
-        rarity: -1,
+
       },
       {
+        ...baseVessel,
         name: "Agnes",
         class: "Space Truck",
         faction: "Space Freighter Union",
-        generatesAir: 0,
-        generatesPower: 0,
-        generatesFood: 0,
-        tradesAir: 0,
+       
         tradesPower: -20,
         tradesFood: 100,
-        tradesAirForCredits: 0,
+       
         tradesPowerForCredits: 10,
         tradesFoodForCredits: 5,
         credits: 200,
@@ -65,16 +80,14 @@ export const vessels: Vessel[] = [
         rarity: -1,
     },
     {
+        ...baseVessel,
         name: "Ned",
         class: "Space Truck",
         faction: "Space Freighter Union",
-        generatesAir: 0,
-        generatesPower: 0,
-        generatesFood: 0,
-        tradesAir: 0,
+       
         tradesPower: -20,
         tradesFood: 100,
-        tradesAirForCredits: 0,
+       
         tradesPowerForCredits: 10,
         tradesFoodForCredits: 5,
         credits: 200,
@@ -86,13 +99,11 @@ export const vessels: Vessel[] = [
         rarity: 1,
     },
     {
+        ...baseVessel,
         name: "Alfonso",
         class: "Space Truck",
         faction: "Space Freighter Union",
-        generatesAir: 0,
-        generatesPower: 0,
-        generatesFood: 0,
-        tradesAir: 0,
+       
         tradesPower: -20,
         tradesFood: 100,
         tradesAirForCredits: 0,
@@ -107,13 +118,11 @@ export const vessels: Vessel[] = [
         rarity: 1,
     },
     {
+        ...baseVessel,
         name: "Zierikzee",
         class: "Amsterdam Merchant",
         faction: "New Hague Merchants",
-        generatesAir: 0,
-        generatesPower: 0,
-        generatesFood: 0,
-        tradesAir: 0,
+        
         tradesPower: -30,
         tradesFood: 300,
         tradesAirForCredits: 0,
@@ -128,16 +137,13 @@ export const vessels: Vessel[] = [
         rarity: 5,
     },
     {
+        ...baseVessel,
         name: "Leiden",
         class: "Amsterdam Merchant",
         faction: "New Hague Merchants",
-        generatesAir: 0,
-        generatesPower: 0,
-        generatesFood: 0,
-        tradesAir: 0,
+        
         tradesPower: -30,
         tradesFood: 300,
-        tradesAirForCredits: 0,
         tradesPowerForCredits: 10,
         tradesFoodForCredits: 5,
         credits: 200,
@@ -149,6 +155,7 @@ export const vessels: Vessel[] = [
         rarity: 5,
     },
     {
+        ...baseVessel,
         name: "Overijssel",
         class: "Amsterdam Merchant",
         faction: "New Hague Merchants",
@@ -170,6 +177,7 @@ export const vessels: Vessel[] = [
         rarity: 5,
     },
     {
+        ...baseVessel,
         name: "∆",
         class: "Unknown Alien",
         faction: "Elythorum Cabal",

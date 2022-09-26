@@ -70,7 +70,24 @@ export async function dockingMenu(stationState: StationState, log: Log): Promise
                 }
                 return { }
             })
+        } else if (manageVesselAnswer.value === 'evict') {
+            const cont = await prompts({
+                type: 'toggle',
+                name: 'value',
+                active: 'yes',
+                inactive: 'no',
+                message: `Really evict ${vessel.name} from the station? Your station will lose favor with the ${vessel.faction} `,
+                initial: false
+            });
+            if (cont.value === true) {
+                return stationState.applyToState(station => {
+                    return { vessels: station.vessels.map(v => v.name === vessel.name
+                        ? vessel.apply({dockingStatus: VesselDockingStatus.NearbyWaitingToLeave})
+                        : vessel) }
+                })
+             }
         }
+
     }
     return stationState;
 }

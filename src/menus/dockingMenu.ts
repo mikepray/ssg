@@ -3,7 +3,7 @@ import prompts, { Answers, Choice } from "prompts";
 import { vessels } from "../data/vessels";
 import { printStationStatus } from "../game";
 import { Log, StationState, Vessel, VesselDockingStatus } from "../types";
-import { getVesselColor, addWithCeiling } from "../utils";
+import { getVesselColor, addWithCeiling, getStationDockingPorts } from "../utils";
 
 export async function dockingMenu(stationState: StationState, log: Log, clear: () => void): Promise<StationState> {
     clear();
@@ -16,8 +16,8 @@ export async function dockingMenu(stationState: StationState, log: Log, clear: (
         };
     });
 
-    if (choices.length < stationState.dockingPorts) {
-        for (let i = 0; i < stationState.dockingPorts - choices.length; i++) {
+    if (choices.length < getStationDockingPorts(stationState)) {
+        for (let i = 0; i < getStationDockingPorts(stationState) - choices.length; i++) {
             choices.push({
                 title: 'Nothing docked'
             });
@@ -35,7 +35,7 @@ export async function dockingMenu(stationState: StationState, log: Log, clear: (
     if (vessel !== undefined) {
         clear();
         printStationStatus(stationState, log, clear);
-        log(`This is the ${vessel.name}, a ${vessel.class} starship. It's affiliated with the ${ stationState.factions.find(faction => faction.name === vessel.faction)?.name} `)
+        log(`This is the ${vessel.name}, class ${vessel.class}. It's affiliated with the ${ stationState.factions.find(faction => faction.name === vessel.faction)?.name} `)
 
         const manageVesselAnswer: Answers<string> = await prompts({
             type: "select",

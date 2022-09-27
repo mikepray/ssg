@@ -15,6 +15,7 @@ export const baseModule: StationModule = {
     airStorage: 0,
     foodStorage: 0,
     creditPurchaseCost: -1,
+    dockingPorts: 0,
     fold: function (props: Partial<StationModule>): StationModule {
       return { ...this, ...props };
     },
@@ -39,6 +40,7 @@ export const stationModules: StationModule[] = [
       airStorage: 20,
       foodStorage: 20,
       creditPurchaseCost: -1,
+      dockingPorts: 2,
     },
     {
       ...baseModule,

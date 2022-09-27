@@ -1,3 +1,4 @@
+import chalk from "chalk";
 import prompts from "prompts";
 import { problems } from "../data/problems";
 import { StationState, Log } from "../types";
@@ -22,6 +23,7 @@ export async function problemMenu(
   const problem = candidateProblems[dN(candidateProblems.length) - 1];
   if (problem) {
     clear();
+    log(chalk.white.bold(problem.name))
     log(problem.narrative);
     const answer = await prompts(problem.questions);
     if (answer) {

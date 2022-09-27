@@ -1,7 +1,7 @@
 import prompts, { Answers } from "prompts";
 import chalk from "chalk";
 import { Log, StationModule, StationState, Vessel, VesselDockingStatus } from "./types";
-import { addWithCeilingAndFloor, addWithFloor, calculateStorageCeilings, d100, d20, dN, getUnassignedCrew, getVesselColor, progressBar, subtractWithFloor } from "./utils";
+import { addWithCeilingAndFloor, addWithFloor, calculateStorageCeilings, d100, d20, dN, getStationDockingPorts, getUnassignedCrew, getVesselColor, progressBar, subtractWithFloor } from "./utils";
 import { assignCrewMenu } from "./menus/assignCrewMenu";
 import { dockingMenu } from "./menus/dockingMenu";
 import { moduleMenu } from "./menus/moduleMenu";
@@ -116,7 +116,7 @@ export async function gameLoop(stardate: number, stationState: StationState, log
                 credits: addWithFloor(station.credits, reducedModuleResources.credits, 0),
             }
         }).foldAndCombine(station => {
-            let dockingPortsOpen = station.dockingPorts - station.vessels.filter(v => v.dockingStatus === VesselDockingStatus.Docked).length;
+            let dockingPortsOpen = getStationDockingPorts(station) - station.vessels.filter(v => v.dockingStatus === VesselDockingStatus.Docked).length;
             return { vessels: station.vessels.map(vessel => {
                 if (vessel.dockingStatus === VesselDockingStatus.WarpingIn) {
                     // vessels warping in start waiting to dock
@@ -289,34 +289,34 @@ export function printStationStatus(stationState: StationState, log: Log, clear: 
     log(foodString);
 
     // print docked vessels
-    log(`\n${chalk.bold.bgGrey(` Vessels docked: `)}`);
+    log(`\n${chalk.bold.bgGrey(` Vessels docked: (${getStationDockingPorts(stationState)} ports)`)}`);
 
     let vesselString = '';
     stationState.vessels.
         filter(vessel => vessel.dockingStatus === VesselDockingStatus.Docked).
-        forEach(vessel => {
-        vesselString += ` > ${vessel === undefined ? chalk.gray(`None`) : chalk.hex(getVesselColor(vessel, stationState.factions))(`${vessel.name}`)}\n`;
+            forEach(vessel => {
+            vesselString += ` > ${chalk.hex(getVesselColor(vessel, stationState.factions))(`${vessel.name}`)}\n`;    
     });
-    log(vesselString)
+    log(vesselString !== '' ? vesselString : chalk.gray(' None\n'));
+
     let nearbyVesselString = '';
     stationState.vessels.
         filter(vessel => vessel.dockingStatus === VesselDockingStatus.NearbyWaitingToDock || vessel.dockingStatus === VesselDockingStatus.NearbyWaitingToLeave).
         forEach(vessel => {
             nearbyVesselString += chalk.hex(getVesselColor(vessel, stationState.factions))(`${vessel.name} \n`);
     });
-    stationState.vessels.
-        filter(vessel => vessel.dockingStatus === VesselDockingStatus.WarpingOut).
-        forEach(vessel => {
-            nearbyVesselString += chalk.italic.cyan('<Outgoing Warp Signature>\n')
-    });
-    stationState.vessels.
-        filter(vessel => vessel.dockingStatus === VesselDockingStatus.WarpingIn).
-        forEach(vessel => {
-            nearbyVesselString += chalk.italic.cyan('<Incoming Warp Signature>\n')
-    });
-    log(' ');
     log(`${chalk.bold.bgGrey(` Vessels nearby: `)}`);
     log(nearbyVesselString !== '' ? nearbyVesselString : chalk.gray(' None\n'));
+    
+    let warpSigsString = '';
+    stationState.vessels.
+        filter(vessel => vessel.dockingStatus === VesselDockingStatus.WarpingOut).
+        forEach(({}) => { warpSigsString += chalk.italic.cyan('<Outgoing Warp Signature>\n') });
+    stationState.vessels.
+        filter(vessel => vessel.dockingStatus === VesselDockingStatus.WarpingIn).
+        forEach(({}) => { warpSigsString += chalk.italic.cyan('<Incoming Warp Signature>\n') });
+    log(`${chalk.bold.bgGrey(` Warp signatures detected: `)}`);
+    log(warpSigsString !== '' ? warpSigsString : chalk.gray(' None\n'));
 }
 
 function spawnVessel(stationState: StationState): Vessel | undefined {

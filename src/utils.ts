@@ -1,5 +1,6 @@
 import chalk from "chalk";
 import { log } from "console";
+import { baseModule } from "./data/stationModules";
 import { Faction, StationState, Vessel } from "./types";
 
 export function calculateStorageCeilings(stationState: StationState) {
@@ -96,6 +97,15 @@ export function getAssignedCrew(stationState: StationState) {
         crewAssigned += module.crewApplied;
     })
     return crewAssigned;
+}
+
+export function getStationDockingPorts(stationState: StationState) {
+    return stationState.stationModules.reduce((previousValue, module) => {
+        return {
+            ...previousValue,
+            dockingPorts: previousValue.dockingPorts + module.dockingPorts
+        }
+    },{...baseModule}).dockingPorts;
 }
 
 export function d100() {

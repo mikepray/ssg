@@ -13,3 +13,7 @@ Manage a space station by trading with docked ships, assigning crew to modules, 
 ## Wishlist
 
 modules to run docking ports
+
+getting modules from solving problems
+
+getting modules from trading with vessels

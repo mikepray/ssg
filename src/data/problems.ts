@@ -1,3 +1,4 @@
+import chalk from "chalk";
 import { ProblemNarrative } from "../types";
 import { d100 } from "../utils";
 
@@ -40,9 +41,9 @@ export const problems: ProblemNarrative[] = [
           const roll = d100();
           const airLost = roll > 60 ? roll > 70 ? roll > 80 ? 
             0 : 2 : 3 : 7;
-          const narrative = roll > 60 && roll < 90 
-          ? `The meteors hit the station and ${airLost} units of air is lost before repairs can be made`
-          : `The meteors pass narrowly by the station and no air is lost!`
+          const narrative = roll > 60 && roll < 80 
+          ? chalk.red(`Meteors hit the station! ${airLost} air is lost before repairs can be made`)
+          : chalk.greenBright(`The meteors pass narrowly by the station and no air is lost!`)
           return {
             narrative: narrative,
             mutateStation: {

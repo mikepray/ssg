@@ -29,7 +29,6 @@ export const baseStation = {
   ),
   previouslyVisitedVesselNames: [],
   previouslySolvedProblems: [],
-  dockingPorts: 0,
   vessels: [],
   fold: function (props: Partial<StationState>): StationState {
     return { ...this, ...props };

@@ -28,6 +28,7 @@ export const baseStation = {
       mod.name === "Air Recycler"
   ),
   previouslyVisitedVesselNames: [],
+  previouslySolvedProblems: [],
   dockingPorts: 0,
   vessels: [],
   fold: function (props: Partial<StationState>): StationState {

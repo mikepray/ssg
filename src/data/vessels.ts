@@ -20,6 +20,7 @@ export const baseVessel: Vessel = {
     dockingFeePriceElasticity: .5,
     timeInQueue: 0,
     rarity: -1,
+    respawnWait: 11,
     dockingStatus: undefined,
     fold: function (props: Partial<Vessel>): Vessel {
         return { ...this, ...props };
@@ -48,6 +49,7 @@ export const vessels: Vessel[] = [
         dockingDaysRequested: 3,
         dockingFeePriceElasticity: .5,
         rarity: 1,
+        respawnWait: 5,
     },
     {
         ...baseVessel,
@@ -78,6 +80,7 @@ export const vessels: Vessel[] = [
         dockingFeePriceElasticity: .5,
         timeInQueue: 0,
         rarity: -1,
+        respawnWait: 5,
     },
     {
         ...baseVessel,
@@ -97,6 +100,7 @@ export const vessels: Vessel[] = [
         dockingFeePriceElasticity: .5,
         timeInQueue: 0,
         rarity: 1,
+        respawnWait: 5,
     },
     {
         ...baseVessel,
@@ -116,6 +120,7 @@ export const vessels: Vessel[] = [
         dockingFeePriceElasticity: .5,
         timeInQueue: 0,
         rarity: 1,
+        respawnWait: 5,
     },
     {
         ...baseVessel,
@@ -197,5 +202,6 @@ export const vessels: Vessel[] = [
         dockingFeePriceElasticity: .5,
         timeInQueue: 0,
         rarity: 18,
+        respawnWait: -1,
     },
 ];

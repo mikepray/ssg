@@ -9,6 +9,8 @@ import { vesselsNearbyMenu } from "./menus/vesselsNearbyMenu";
 import { vessels } from "./data/vessels";
 import { baseModule } from "./data/stationModules";
 import { factions } from "./data/factions";
+import { problemMenu } from "./menus/problemMenu";
+import { problems } from "./data/problems";
 
 export async function gameLoop(stardate: number, stationState: StationState, log: Log, clear: () => void) {
     if (stationState.crew === 0) {
@@ -174,26 +176,42 @@ export async function gameLoop(stardate: number, stationState: StationState, log
             )};
         }).foldAndCombine(station => {
             // add spawned vessels
-            const incomingVessel = spawnVessel(stationState);
+            const incomingVessel = spawnVessel(station);
             if (incomingVessel) {
                 return {
                     previouslyVisitedVesselNames: station.previouslyVisitedVesselNames.concat({
                         name: incomingVessel.name, 
-                        stardateSinceLastVisited: stationState.stardate}),
+                        stardateSinceLastVisited: station.stardate}),
                     daysSinceVesselSpawn: 0,
                     vessels: station.vessels.concat(incomingVessel.fold({timeInQueue: 0, dockingStatus: VesselDockingStatus.WarpingIn}))
                 }
             }
             return {  };
         }).foldAndCombine(station => {
-            // allow previously visited vessels to revisit the station after at least 11 days
+            // allow previously visited vessels to revisit the station after at least the vessel's respawn wait
             return {
-                previouslyVisitedVesselNames: station.previouslyVisitedVesselNames.filter(vessel => 
-                    vessel.stardateSinceLastVisited + 10 + d20() >= station.stardate)
+                previouslyVisitedVesselNames: station.previouslyVisitedVesselNames.filter(({name, stardateSinceLastVisited}) => {
+                    const vessel = vessels.find(vessel => vessel.name === name);
+                    if (vessel) {
+                        return stardateSinceLastVisited + vessel.respawnWait + d20() >= station.stardate;
+                    }
+                })
             }
-        })
-        
-        // problem loop
+        }).foldAndCombine(station => {
+            // allow problems that have previously been solved to happen again after their respawn wait
+            return {
+                previouslySolvedProblems: station.previouslySolvedProblems.filter(({name, stardateSinceLastSolved}) => {
+                    const problem = problems.find(problem => problem.name === name);
+                    if (problem) {
+                        return stardateSinceLastSolved + problem.respawnWait + d20() >= station.stardate;
+                    }
+                })
+            }
+        });
+         // an increasing chance that a problem happens
+        if (d100() < (20 + (stationState.daysSinceVesselSpawn * .5))) {
+            stationState = await stationState.foldAndCombineAsync(station => problemMenu(station, log, clear));
+        }
     }
     gameLoop(stardate, stationState, log, clear);
 }
@@ -307,7 +325,7 @@ export function printStationStatus(stationState: StationState, log: Log, clear: 
 function spawnVessel(stationState: StationState): Vessel | undefined {
     let vessel: Vessel | undefined = undefined;
     // an increasing chance that a vessel spawns
-    if (d100() < (25 + (stationState.daysSinceVesselSpawn * 2))) {
+    if (d100() <= (30 + (stationState.daysSinceVesselSpawn * 2))) {
         const rarity = d20();
         // find vessels according to rarity. don't consider vessels that have visited previously
         const candidateVesselsToSpawn = vessels.filter(vessel => 

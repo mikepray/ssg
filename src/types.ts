@@ -1,4 +1,4 @@
-import { Answers } from "prompts";
+import prompts, { Answers } from "prompts";
 
 export type StationState = {
     stationName: string,
@@ -22,6 +22,10 @@ export type StationState = {
     previouslyVisitedVesselNames: {
         name: string,
         stardateSinceLastVisited: number,
+    }[],
+    previouslySolvedProblems: {
+        name: string,
+        stardateSinceLastSolved: number,
     }[],
     dockingPorts: number,
     fold: (stationState: Partial<StationState>) => StationState,
@@ -79,6 +83,7 @@ export type Vessel = {
     dockingFeePriceElasticity: number, 
     timeInQueue: number, 
     rarity: number, // -1 is never, 0 is extremely common, 1 is extremely rare
+    respawnWait: number, // -1 will never come back, otherwise the number of days the vessel will be away before it has a chance to respawn
     dockingStatus: VesselDockingStatus | undefined, 
     fold: (vessel: Partial<Vessel>) => Vessel,
     foldAndCombine: (combine: (vessel: Vessel) => Partial<Vessel>) => Vessel,
@@ -98,6 +103,20 @@ export type Faction = {
     description: string,
     favor: number, // -1 means the player cannot gain or lose favor with this faction (e.g., unaligned, aliens)
     hexColor: string,
+}
+
+export type ProblemNarrative = { 
+    name: string,
+    narrative: string,
+    questions: prompts.PromptObject<string>,
+    results: ProblemResult[],
+    rarity: number,
+    respawnWait: number,
+}
+
+export type ProblemResult = {
+    answer: string,
+    mutation: (station: StationState) => { narrative: string, mutateStation: Partial<StationState> }
 }
 
 export type StartingOptions = {

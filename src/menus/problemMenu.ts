@@ -14,35 +14,39 @@ export async function problemMenu(
     ({ name, rarity }) =>
       rarity > 0 &&
       rarity < rarityRoll &&
-      !problemPreviouslySolved(name, stationState.previouslySolvedProblems)
+      stationState.previouslySolvedProblems.find(
+        (problem) => problem.name == name
+      ) === undefined
   );
 
   const problem = candidateProblems[dN(candidateProblems.length) - 1];
-  clear();
-  log(problem.narrative);
-  const answer = await prompts(problem.questions);
-  if (answer) {
-    const result = problem.results.find((result) => result.answer === answer.answer)
-    if (result) {
+  if (problem) {
+    clear();
+    log(problem.narrative);
+    const answer = await prompts(problem.questions);
+    if (answer) {
+      const result = problem.results.find(
+        (result) => result.answer === answer.answer
+      );
+      if (result) {
         const mutation = result.mutation(stationState);
         log(mutation.narrative);
         await prompts({
-            type: "confirm",
-            name: "value",
-            message: "Continue...",
-            initial: true,
-          });
-        return stationState.fold({...mutation.mutateStation})
+          type: "confirm",
+          name: "value",
+          message: "Continue...",
+          initial: true,
+        });
+        return stationState.fold({
+          ...mutation.mutateStation,
+          previouslySolvedProblems:
+            stationState.previouslySolvedProblems.concat({
+              name: problem.name,
+              stardateSinceLastSolved: stationState.stardate,
+            }),
+        });
+      }
     }
-}
+  }
   return stationState;
-}
-
-function problemPreviouslySolved(
-  name: string,
-  previouslySolvedProblems: { name: string; stardateSinceLastSolved: number }[]
-) {
-  return (
-    previouslySolvedProblems.find(problem => problem.name == name) !== undefined
-  );
 }

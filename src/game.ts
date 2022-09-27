@@ -192,19 +192,16 @@ export async function gameLoop(stardate: number, stationState: StationState, log
             return {
                 previouslyVisitedVesselNames: station.previouslyVisitedVesselNames.filter(({name, stardateSinceLastVisited}) => {
                     const vessel = vessels.find(vessel => vessel.name === name);
-                    if (vessel) {
-                        return stardateSinceLastVisited + vessel.respawnWait + d20() >= station.stardate;
-                    }
+                    return vessel && station.stardate < stardateSinceLastVisited + vessel.respawnWait + d20();
+                    
                 })
             }
         }).foldAndCombine(station => {
             // allow problems that have previously been solved to happen again after their respawn wait
             return {
-                previouslySolvedProblems: station.previouslySolvedProblems.filter(({name, stardateSinceLastSolved}) => {
-                    const problem = problems.find(problem => problem.name === name);
-                    if (problem) {
-                        return stardateSinceLastSolved + problem.respawnWait + d20() >= station.stardate;
-                    }
+                previouslySolvedProblems: station.previouslySolvedProblems.filter(problem => {
+                    const fullProblem = problems.find(fullProblem => fullProblem.name === problem.name);
+                    return fullProblem && station.stardate < problem.stardateSinceLastSolved + fullProblem.respawnWait;
                 })
             }
         });

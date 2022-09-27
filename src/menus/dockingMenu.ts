@@ -3,11 +3,11 @@ import prompts, { Answers, Choice } from "prompts";
 import { vessels } from "../data/vessels";
 import { printStationStatus } from "../game";
 import { Log, StationState, Vessel, VesselDockingStatus } from "../types";
-import { getVesselColor } from "../utils";
+import { getVesselColor, addWithCeiling } from "../utils";
 
-export async function dockingMenu(stationState: StationState, log: Log): Promise<StationState> {
-    console.clear();
-    printStationStatus(stationState, log);
+export async function dockingMenu(stationState: StationState, log: Log, clear: () => void): Promise<StationState> {
+    clear();
+    printStationStatus(stationState, log, clear);
 
     const choices: Choice[] = stationState.vessels.filter(v => v.dockingStatus === VesselDockingStatus.Docked).map(vessel => {
         return {
@@ -33,8 +33,8 @@ export async function dockingMenu(stationState: StationState, log: Log): Promise
 
     const vessel = stationState.vessels.find(v => v.name === chooseVesselAnswer.value)
     if (vessel !== undefined) {
-        console.clear();
-        printStationStatus(stationState, log);
+        clear();
+        printStationStatus(stationState, log, clear);
         log(`This is the ${vessel.name}, a ${vessel.class} starship. It's affiliated with the ${ stationState.factions.find(faction => faction.name === vessel.faction)?.name} `)
 
         const manageVesselAnswer: Answers<string> = await prompts({
@@ -55,14 +55,13 @@ export async function dockingMenu(stationState: StationState, log: Log): Promise
                     title: 'Seize Cargo',
                     description: `Seize this vessel's cargo`,
                     value: 'seize',
-                    disabled: true,
                 },
             ],
         });
 
         if (manageVesselAnswer.value === 'trade') {
             return stationState.foldAndCombineAsync(async station => {
-                const tradeMutation = await trade(station, vessel, log)
+                const tradeMutation = await trade(station, vessel, log, clear)
                 if (tradeMutation !== undefined) {
                     return {
                         ...tradeMutation.mutateStation,
@@ -97,17 +96,28 @@ export async function dockingMenu(stationState: StationState, log: Log): Promise
                 initial: false
             });
             if (cont.value === true) {
-                return stationState.foldAndCombine(station => {
-                    if (vessel.tradesAir > 0) {
+                return stationState.foldAndCombine(({air, power, food, vessels, factions}) => {
+                    let airStorageCeiling: number = 0;
+                    let powerStorageCeiling: number = 0;
+                    let foodStorageCeiling: number = 0;
 
-                    }
+                    stationState.stationModules.forEach(module => {
+                        airStorageCeiling += module.airStorage;
+                        powerStorageCeiling += module.powerStorage;
+                        foodStorageCeiling += module.foodStorage;
+                    });
                     return { 
-                        air: station.air + vessel.tradesAir > 0 ? vessel.tradesAir : 0,
-                        power: station.power + vessel.tradesPower > 0 ? vessel.dockingDaysRequested : 0,
-                        food: station.food + vessel.tradesFood > 0 ? vessel.dockingDaysRequested : 0,
-                        vessels: station.vessels.map(v => v.name === vessel.name
-                        ? vessel.fold({tradesAir: 0, tradesFood: 0, tradesPower: 0})
-                        : vessel) }
+                        air: air + vessel.tradesAir > air ? addWithCeiling(air, vessel.tradesAir, airStorageCeiling) : air,
+                        power: power + vessel.tradesPower > power ? addWithCeiling(power, vessel.tradesPower, powerStorageCeiling) : power,
+                        food: food + vessel.tradesFood > food ? addWithCeiling(food, vessel.tradesFood, foodStorageCeiling) : food,
+                        factions: factions.map(faction => 
+                            faction.name === vessel?.faction && faction.favor !== -5
+                            ? { ...faction, favor: faction.favor + 1}
+                            : faction
+                        ),
+                        vessels: vessels.map(v => v.name === vessel.name
+                        ? v.fold({tradesAir: 0, tradesFood: 0, tradesPower: 0})
+                        : v) }
                 })
             }
         }
@@ -120,7 +130,7 @@ type TradeMutation = {
     mutateVessel: Vessel,
 }
 
-async function trade(stationState: StationState, vessel: Vessel, log: Log): Promise<TradeMutation> {
+async function trade(stationState: StationState, vessel: Vessel, log: Log, clear: () => void): Promise<TradeMutation> {
     let tradeAnswer: Answers<string>;
     const choices: prompts.Choice[] = [ ];
 
@@ -175,7 +185,7 @@ async function trade(stationState: StationState, vessel: Vessel, log: Log): Prom
         powerStorageCeiling += module.powerStorage;
         foodStorageCeiling += module.foodStorage;
     });
-    printStationStatus(stationState, log);
+    printStationStatus(stationState, log, clear);
 
     // trade menu
     tradeAnswer = await prompts({
@@ -230,8 +240,10 @@ async function buyResourceMenu(stationState: StationState, tradingVessel: Vessel
     });
     if (amount.valueToBuy > 0) {
         const cont = await prompts({
-            type: 'confirm',
+            type: 'toggle',
             name: 'value',
+            active: 'yes',
+            inactive: 'no',
             message: `Buy ${amount.valueToBuy} ${resource} from ${tradingVessel.name} for ${amount.valueToBuy * tradesResourceForCredits()} credits?`,
             initial: true
         });
@@ -264,7 +276,7 @@ async function buyResourceMenu(stationState: StationState, tradingVessel: Vessel
             } else if (resource === 'food') {
                 return {
                     mutateStation: {
-                        power: stationState.food + amount.valueToBuy,
+                        food: stationState.food + amount.valueToBuy,
                         credits: stationState.credits - amount.valueToBuy * tradesResourceForCredits(),
                     },
                     mutateVessel: {
@@ -302,6 +314,8 @@ async function sellResourceMenu(stationState: StationState, tradingVessel: Vesse
         const cont = await prompts({
             type: 'confirm',
             name: 'value',
+            active: 'yes',
+            inactive: 'no',
             message: `Sell ${amount.valueToSell} ${resource} to ${tradingVessel.name} for ${amount.valueToSell * tradesResourceForCredits()} credits?`,
             initial: true
         });

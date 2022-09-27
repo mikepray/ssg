@@ -30,13 +30,13 @@ export const baseStation = {
   previouslyVisitedVesselNames: [],
   dockingPorts: 0,
   vessels: [],
-  apply: function (props: Partial<StationState>): StationState {
+  fold: function (props: Partial<StationState>): StationState {
     return { ...this, ...props };
   },
-  applyToState: function (fn: (state: StationState) => Partial<StationState>): StationState {
+  foldAndCombine: function (fn: (state: StationState) => Partial<StationState>): StationState {
     return { ...this, ...fn(this)};
   },
-  applyToStateAsync: async function (fn: (state: StationState) => Promise<Partial<StationState>>): Promise<StationState> {
+  foldAndCombineAsync: async function (fn: (state: StationState) => Promise<Partial<StationState>>): Promise<StationState> {
     return { ...this, ...await fn(this)};
   },
 };

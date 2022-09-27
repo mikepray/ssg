@@ -6,8 +6,8 @@ import { testingStationState } from "../data/testStartingState";
 import { StationState, StationModule } from "../types";
 import { getUnassignedCrew, getAssignedCrew } from "../utils";
 
-export async function assignCrewMenu(stationState: StationState): Promise<StationState> {
-    console.clear();
+export async function assignCrewMenu(stationState: StationState, clear: () => void): Promise<StationState> {
+    clear();
     const unassignedCrew = getUnassignedCrew(stationState);
     const moduleName: Answers<string> = await prompts({
         type: "select",

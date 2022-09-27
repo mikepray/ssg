@@ -4,8 +4,8 @@ import prompts, { Answers, Choice } from "prompts";
 import { StationState, VesselDockingStatus } from "../types";
 import { getVesselColor } from "../utils";
 
-export async function vesselsNearbyMenu(stationState: StationState) {
-  console.clear();
+export async function vesselsNearbyMenu(stationState: StationState, clear: () => void) {
+clear();
 
   const choices: Choice[] = stationState.vessels
     .filter((v) => v.dockingStatus !== VesselDockingStatus.Docked)

@@ -2,8 +2,8 @@ import tap from "tap";
 import { testingStationState } from "../src/data/testStartingState";
 
 const newStationState = testingStationState
-.apply({stationName: "updated"})
-.applyToState((state) => {
+.fold({stationName: "updated"})
+.foldAndCombine((state) => {
     return { ...state, credits: state.credits + 100 };
 });
 

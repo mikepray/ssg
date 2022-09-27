@@ -4,8 +4,8 @@ import prompts from "prompts";
 import { StationState } from "../types";
 import { printTable } from "../utils";
 
-export async function moduleMenu(stationState: StationState) {
-    console.clear();
+export async function moduleMenu(stationState: StationState, clear: () => void) {
+    clear();
     stationState.stationModules.forEach(module => {
         const op = module.crewApplied >= module.crewRequired ? 
             chalk.yellow(`Operational` ) :

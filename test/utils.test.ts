@@ -11,7 +11,7 @@ const stationState = testingStationState;
 let logString = '';
 printStationStatus(stationState, (str: string) => {
     logString += str;
-})
+}, console.clear)
 tap.matchSnapshot(logString, 'stationStatusOutput');
 tap.matchSnapshot(progressBar(10, 50, 100, chalk.white, chalk.black), 'progress bar 1');
 tap.matchSnapshot(progressBar(4, 50, 100, chalk.white, chalk.black), 'progress bar 2');

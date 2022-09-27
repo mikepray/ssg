@@ -10,11 +10,11 @@ import { vessels } from "./data/vessels";
 import { baseModule } from "./data/stationModules";
 import { factions } from "./data/factions";
 
-export async function gameLoop(stardate: number, stationState: StationState, log: Log) {
+export async function gameLoop(stardate: number, stationState: StationState, log: Log, clear: () => void) {
     if (stationState.crew === 0) {
         throw new Error("Game Over - you have no crew left!")
     }
-    printStationStatus(stationState, log);
+    printStationStatus(stationState, log, clear);
     const ceilings = calculateStorageCeilings(stationState);
     
     // wait for input
@@ -60,13 +60,13 @@ export async function gameLoop(stardate: number, stationState: StationState, log
         return;
     }
     if (input.value === 'modules') {
-        await moduleMenu(stationState);
+        await moduleMenu(stationState, clear);
     } else if (input.value === 'docking') {
-        stationState = await dockingMenu(stationState, log);
+        stationState = await dockingMenu(stationState, log, clear);
     } else if (input.value === 'vessels') {
-        await vesselsNearbyMenu(stationState);
+        await vesselsNearbyMenu(stationState, clear);
     } else if (input.value === 'crew') {
-        stationState = await assignCrewMenu(stationState);
+        stationState = await assignCrewMenu(stationState, clear);
     } else if (input.value === 'wait') {
         stationState = stationState
           .foldAndCombine(incrementStardate)
@@ -195,7 +195,7 @@ export async function gameLoop(stardate: number, stationState: StationState, log
         
         // problem loop
     }
-    gameLoop(stardate, stationState, log);
+    gameLoop(stardate, stationState, log, clear);
 }
 
 const spendResourcesPerCrew = (stationState: StationState): Partial<StationState> => {
@@ -251,8 +251,8 @@ const addFunding = (stationState: StationState): Partial<StationState> => {
     return { credits: stationState.credits + stationState.funding };
 }
 
-export function printStationStatus(stationState: StationState, log: Log) {
-    console.clear();
+export function printStationStatus(stationState: StationState, log: Log, clear: () => void) {
+    clear();
 
     const ceilings = calculateStorageCeilings(stationState);
     // print stardate

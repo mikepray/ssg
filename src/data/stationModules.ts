@@ -15,13 +15,13 @@ export const baseModule: StationModule = {
     airStorage: 0,
     foodStorage: 0,
     creditPurchaseCost: -1,
-    apply: function (props: Partial<StationModule>): StationModule {
+    fold: function (props: Partial<StationModule>): StationModule {
       return { ...this, ...props };
     },
-    applyToState: function (fn: (state: StationModule) => Partial<StationModule>): StationModule {
+    foldAndCombine: function (fn: (state: StationModule) => Partial<StationModule>): StationModule {
       return { ...this, ...fn(this)};
     },
-    applyToStateAsync: function (fn: (state: StationModule) => Partial<StationModule>): StationModule {
+    foldAndCombineAsync: function (fn: (state: StationModule) => Partial<StationModule>): StationModule {
       return { ...this, ...fn(this)};
     },
 }

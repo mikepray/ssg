@@ -24,9 +24,9 @@ export type StationState = {
         stardateSinceLastVisited: number,
     }[],
     dockingPorts: number,
-    apply: (stationState: Partial<StationState>) => StationState,
-    applyToState: (fn: (stationState: StationState) => Partial<StationState>) => StationState,
-    applyToStateAsync: (fn: (stationState: StationState) => Promise<Partial<StationState>>) => Promise<StationState>,
+    fold: (stationState: Partial<StationState>) => StationState,
+    foldAndCombine: (combine: (stationState: StationState) => Partial<StationState>) => StationState,
+    foldAndCombineAsync: (combine: (stationState: StationState) => Promise<Partial<StationState>>) => Promise<StationState>,
 }
 
 export type StationModule = {
@@ -45,9 +45,9 @@ export type StationModule = {
     airStorage: number,
     foodStorage: number,
     creditPurchaseCost: number,
-    apply: (stationModule: Partial<StationModule>) => StationModule,
-    applyToState: (fn: (stationModule: StationModule) => Partial<StationModule>) => StationModule,
-    applyToStateAsync:(fn: (stationModule: StationModule) => Partial<StationModule>) => StationModule,
+    fold: (stationModule: Partial<StationModule>) => StationModule,
+    foldAndCombine: (combine: (stationModule: StationModule) => Partial<StationModule>) => StationModule,
+    foldAndCombineAsync:(combine: (stationModule: StationModule) => Partial<StationModule>) => StationModule,
 }
 
 export type DockRing = {
@@ -80,9 +80,9 @@ export type Vessel = {
     timeInQueue: number, 
     rarity: number, // -1 is never, 0 is extremely common, 1 is extremely rare
     dockingStatus: VesselDockingStatus | undefined, 
-    apply: (vessel: Partial<Vessel>) => Vessel,
-    applyToState: (fn: (vessel: Vessel) => Partial<Vessel>) => Vessel,
-    applyToStateAsync: (fn: (vessel: Vessel) => Partial<Vessel>) => Vessel,
+    fold: (vessel: Partial<Vessel>) => Vessel,
+    foldAndCombine: (combine: (vessel: Vessel) => Partial<Vessel>) => Vessel,
+    foldAndCombineAsync: (combine: (vessel: Vessel) => Partial<Vessel>) => Vessel,
 }
 
 export enum VesselDockingStatus {

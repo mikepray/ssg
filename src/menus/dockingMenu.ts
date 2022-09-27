@@ -55,12 +55,13 @@ export async function dockingMenu(stationState: StationState, log: Log): Promise
                     title: 'Seize Cargo',
                     description: `Seize this vessel's cargo`,
                     value: 'seize',
+                    disabled: true,
                 },
             ],
         });
 
         if (manageVesselAnswer.value === 'trade') {
-            return stationState.applyToStateAsync(async station => {
+            return stationState.foldAndCombineAsync(async station => {
                 const tradeMutation = await trade(station, vessel, log)
                 if (tradeMutation !== undefined) {
                     return {
@@ -80,14 +81,36 @@ export async function dockingMenu(stationState: StationState, log: Log): Promise
                 initial: false
             });
             if (cont.value === true) {
-                return stationState.applyToState(station => {
+                return stationState.foldAndCombine(station => {
                     return { vessels: station.vessels.map(v => v.name === vessel.name
-                        ? vessel.apply({dockingStatus: VesselDockingStatus.NearbyWaitingToLeave})
+                        ? vessel.fold({dockingStatus: VesselDockingStatus.NearbyWaitingToLeave})
                         : vessel) }
                 })
-             }
-        }
+            }
+        } else if (manageVesselAnswer.value === 'seize') {
+            const cont = await prompts({
+                type: 'toggle',
+                name: 'value',
+                active: 'yes',
+                inactive: 'no',
+                message: `Really seize the cargo of ${vessel.name}? Your station will lose significant favor with the ${vessel.faction} `,
+                initial: false
+            });
+            if (cont.value === true) {
+                return stationState.foldAndCombine(station => {
+                    if (vessel.tradesAir > 0) {
 
+                    }
+                    return { 
+                        air: station.air + vessel.tradesAir > 0 ? vessel.tradesAir : 0,
+                        power: station.power + vessel.tradesPower > 0 ? vessel.dockingDaysRequested : 0,
+                        food: station.food + vessel.tradesFood > 0 ? vessel.dockingDaysRequested : 0,
+                        vessels: station.vessels.map(v => v.name === vessel.name
+                        ? vessel.fold({tradesAir: 0, tradesFood: 0, tradesPower: 0})
+                        : vessel) }
+                })
+            }
+        }
     }
     return stationState;
 }

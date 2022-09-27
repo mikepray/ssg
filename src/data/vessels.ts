@@ -21,13 +21,13 @@ export const baseVessel: Vessel = {
     timeInQueue: 0,
     rarity: -1,
     dockingStatus: undefined,
-    apply: function (props: Partial<Vessel>): Vessel {
+    fold: function (props: Partial<Vessel>): Vessel {
         return { ...this, ...props };
     },
-    applyToState: function (fn: (state: Vessel) => Partial<Vessel>): Vessel {
+    foldAndCombine: function (fn: (state: Vessel) => Partial<Vessel>): Vessel {
         return { ...this, ...fn(this)};
     },
-    applyToStateAsync: function (fn: (state: Vessel) => Partial<Vessel>): Vessel {
+    foldAndCombineAsync: function (fn: (state: Vessel) => Partial<Vessel>): Vessel {
         return { ...this, ...fn(this)};
     },
 }

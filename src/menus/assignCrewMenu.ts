@@ -40,9 +40,9 @@ export async function assignCrewMenu(stationState: StationState): Promise<Statio
         })
         // set the crew assignment to the module
         if (crewAssignmentForModule.value >= 0) {
-            return stationState.apply({
+            return stationState.fold({
                 stationModules: stationState.stationModules.map(m => m.name === moduleToAssign.name 
-                    ? m.apply({crewApplied: crewAssignmentForModule.value})
+                    ? m.fold({crewApplied: crewAssignmentForModule.value})
                     : m),
             });
         }

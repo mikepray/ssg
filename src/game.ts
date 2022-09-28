@@ -62,7 +62,14 @@ export async function gameLoop(stardate: number, stationState: StationState, log
         return;
     }
     if (input.value === 'modules') {
-        await moduleMenu(stationState, clear);
+        clear();
+        moduleMenu(stationState.stationModules, log, clear);
+        await prompts({
+            type: 'confirm',
+            name: 'value',
+            message: 'Continue...',
+            initial: true
+          });
     } else if (input.value === 'docking') {
         stationState = await dockingMenu(stationState, log, clear);
     } else if (input.value === 'vessels') {

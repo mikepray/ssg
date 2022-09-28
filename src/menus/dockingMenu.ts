@@ -2,8 +2,9 @@ import chalk from "chalk";
 import prompts, { Answers, Choice } from "prompts";
 import { vessels } from "../data/vessels";
 import { printStationStatus } from "../game";
-import { Log, StationState, Vessel, VesselDockingStatus } from "../types";
+import { Log, StationModule, StationState, Vessel, VesselDockingStatus } from "../types";
 import { getVesselColor, addWithCeiling, getStationDockingPorts } from "../utils";
+import { moduleMenu } from "./moduleMenu";
 
 export async function dockingMenu(stationState: StationState, log: Log, clear: () => void): Promise<StationState> {
     clear();
@@ -170,6 +171,12 @@ async function trade(stationState: StationState, vessel: Vessel, log: Log, clear
             value: `sellFood`,
         });
     }
+    vessel.modulesForSale.forEach(({creditPrice, module}) => {
+        choices.push({
+            title: `Buy module ${module.name} for ${creditPrice}`,
+            value: `buy${module.name}`
+        })
+    })
 
     choices.push({
         title: `Back`,
@@ -214,9 +221,47 @@ async function trade(stationState: StationState, vessel: Vessel, log: Log, clear
         if (tradeAnswer.value === 'sellFood') {
             return await sellResourceMenu(stationState, vessel, foodStorageCeiling, 'food', () => vessel.tradesFood, () => vessel.tradesFoodForCredits, () => stationState.food);
         }
+        const mod = vessel.modulesForSale.find(async moduleForSale => {
+            `buy${moduleForSale.module.name}` === tradeAnswer.value;
+        })
+        if (mod) {
+            return await buyModuleMenu(stationState, vessel, mod, log, clear); 
+        }
     }
 
     return { mutateStation: stationState, mutateVessel: vessel };
+}
+
+async function buyModuleMenu(stationState: StationState, tradingVessel: Vessel, moduleToBuy: {creditPrice: number, module: StationModule}, log: Log, clear: () => void): Promise<TradeMutation> {
+    log('This vessel is selling this module: ' )
+    moduleMenu([moduleToBuy.module], log, clear);
+    if (stationState.credits >= moduleToBuy.creditPrice) {
+        const conf = await prompts({
+            type: 'toggle',
+            name: 'value',
+            active: 'yes',
+            inactive: 'no',
+            message: `Buy ${moduleToBuy.module.name} for ${moduleToBuy.creditPrice} credits?`,
+            initial: true
+        });
+        if (conf.value === true) {
+            return {
+                mutateStation: { 
+                    credits: stationState.credits - moduleToBuy.creditPrice,
+                    stationModules: stationState.stationModules.concat(moduleToBuy.module),
+                 },
+                mutateVessel: { ...tradingVessel,
+                    credits: tradingVessel.credits + moduleToBuy.creditPrice,
+                    modulesForSale: tradingVessel.modulesForSale.filter(m => m.module.name !== moduleToBuy.module.name)
+                }
+            }
+        }
+    } else {
+        log('The station does not have enough credits to afford this module');
+    }
+    return {
+        mutateStation: { }, mutateVessel: tradingVessel
+    }
 }
 
 async function buyResourceMenu(stationState: StationState, tradingVessel: Vessel, resourceStorageCeiling: number, resource: string, tradesResource: () => number, tradesResourceForCredits: () => number, stationResource: () => number): Promise<TradeMutation> {

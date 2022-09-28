@@ -74,6 +74,10 @@ export type Vessel = {
     tradesAirForCredits: number,
     tradesPowerForCredits: number,
     tradesFoodForCredits: number,
+    modulesForSale: {
+        creditPrice: number,
+        module: StationModule,
+    }[],
     credits: number,
     morale: number, // the morale boost (or penalty) to the stations' crew while the vessel is docked
     queueTolerance: number, // the amount in days the vessel will tolerate staying in the docking queue before leaving the area

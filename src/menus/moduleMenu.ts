@@ -1,12 +1,10 @@
 import chalk from "chalk";
-import { log } from "console";
 import prompts from "prompts";
-import { StationState } from "../types";
+import { Log, StationModule } from "../types";
 import { printTable } from "../utils";
 
-export async function moduleMenu(stationState: StationState, clear: () => void) {
-    clear();
-    stationState.stationModules.forEach(module => {
+export function moduleMenu(modules: StationModule[], log: Log, clear: () => void) {
+    modules.forEach(module => {
         const op = module.crewApplied >= module.crewRequired ? 
             chalk.yellow(`Operational` ) :
             chalk.grey(`Not Operational `);
@@ -38,10 +36,5 @@ export async function moduleMenu(stationState: StationState, clear: () => void) 
 
     });
 
-    const cont = await prompts({
-        type: 'confirm',
-        name: 'value',
-        message: 'Continue...',
-        initial: true
-      });
+
 }

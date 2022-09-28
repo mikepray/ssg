@@ -2,7 +2,7 @@
 
 ## Running
 
-`npm run-script run`
+`npm start`
 
 colors may depend on your terminal
 
@@ -12,8 +12,17 @@ Manage a space station by trading with docked ships, assigning crew to modules, 
 
 ## Wishlist
 
-modules to run docking ports
+better main menu viz of vessels and their tradeable resources
 
 getting modules from solving problems
 
 getting modules from trading with vessels
+
+modules should allow unique solutions to problems
+
+Module ideas:
+- tractor beam
+- short-range teleporter
+- cryotanks (unassigned crew don't take food or air!)
+- biodome (grow food)
+

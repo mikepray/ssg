@@ -1,4 +1,5 @@
 import { Vessel, VesselDockingStatus } from "../types";
+import { baseModule } from "./stationModules";
 
 export const baseVessel: Vessel = {
     name: "Base Vessel",
@@ -21,6 +22,7 @@ export const baseVessel: Vessel = {
     timeInQueue: 0,
     rarity: -1,
     respawnWait: 11,
+    modulesForSale: [ ],
     dockingStatus: undefined,
     fold: function (props: Partial<Vessel>): Vessel {
         return { ...this, ...props };

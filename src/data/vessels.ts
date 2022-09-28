@@ -172,7 +172,7 @@ export const vessels: Vessel[] = [
         tradesAir: 500,
         tradesPower: -30,
         tradesFood: 0,
-        tradesAirForCredits: 0,
+        tradesAirForCredits: 10,
         tradesPowerForCredits: 10,
         tradesFoodForCredits: 5,
         credits: 500,

@@ -22,40 +22,32 @@ export function calculateStorageCeilings(stationState: StationState) {
 
 export function subtractWithFloor(n:number, i:number, floor:number) {
     if (n - i < floor) {
-        n = floor;
-    } else {
-        n -= i;
+        return floor;
     }
-    return n;
+    return n - i;
 }
 
 export function addWithCeiling(n:number, i:number, ceiling:number) {
     if (n + i > ceiling) {
-        n = ceiling;
-    } else {
-        n += i;
-    }
-    return n;
+       return ceiling;
+    } 
+    return n + i;
 }
 
 export function addWithFloor(n:number, i:number, floor:number) {
     if (n + i < floor) {
-        n = floor;
-    } else {
-        n += i;
+        return floor;
     }
-    return n;
+    return n + i;
 }
 
 export function addWithCeilingAndFloor(n:number, i:number, floor:number, ceiling:number) {
     if (n + i > ceiling ) {
-        n = ceiling;
+        return ceiling;
     } else if (n + i < floor) {
-        n = floor;
-    } else {
-        n += i;
+        return floor;
     }
-    return n;
+    return n + i;    
 }
 
 export function progressBar(stops:number, value:number, max:number, filled:chalk.Chalk, unfilled:chalk.Chalk) {

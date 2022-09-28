@@ -14,7 +14,7 @@ import { problems } from "./data/problems";
 
 export async function gameLoop(stationState: StationState, log: Log, clear: () => void): Promise<StationState> {
     if (stationState.crew === 0) {
-        throw new Error("Game Over - you have no crew left!")
+        return Promise.reject('Game')
     }
     printStationStatus(stationState, log, clear);
     const ceilings = calculateStorageCeilings(stationState);
@@ -82,24 +82,34 @@ export async function gameLoop(stationState: StationState, log: Log, clear: () =
           .foldAndCombine(addFunding)
           .foldAndCombine(spendResourcesPerCrew)
           .foldAndCombine(reduceMoraleWithoutFood)
-          .foldAndCombine(reduceCrewWithoutFood)
+          .foldAndCombine((station) => {
+            if (station.daysWithoutFood > 5) {
+                // if it's been too long without food, reduce crew!
+                const red = reduceModuleCrew(
+                    station.foldAndCombine(({crew}) => { return { crew: crew - 1} }),
+                    station.stationModules.find(({crewApplied}) => crewApplied > 0)
+                );
+                return red;
+            }
+            return station;
+          })
           // if there's no credits, reduce morale
           .foldAndCombine((station) =>
             station.credits <= 0
-              ? { morale: subtractWithFloor(station.morale, 2, 0) }
+              ? { morale: subtractWithFloor(station.morale, station.crew * 2, 0) }
               : station
           )
           // if there's no air, reduce crew!
-          .foldAndCombine((station) =>
-            station.air === 0
-              ? reduceModuleCrew(
-                  station.foldAndCombine((stat) => {
-                    return { crew: subtractWithFloor(stat.crew, 1, 0) };
-                  }),
-                  station.stationModules.find((val) => val.crewApplied > 0)
-                )
-              : station
-          ).foldAndCombine((station) => {
+          .foldAndCombine((station) => {
+            if (station.air <= 0) {
+                return reduceModuleCrew(
+                    station.foldAndCombine(({crew}) => { return { crew: crew - 1 } }),
+                    station.stationModules.find(({crewApplied}) => crewApplied > 0)
+                  )
+            } 
+            return station;
+            })
+          .foldAndCombine((station) => {
             const reducedModuleResources = station.stationModules.reduce((previousValue, module) => {
                 // reduce the modules' resource generation/consumption
                 if (module.crewApplied >= module.crewRequired && station.power + module.power >= 0) {
@@ -132,10 +142,14 @@ export async function gameLoop(stationState: StationState, log: Log, clear: () =
                     // take vessels waiting to dock and dock them, if possible, and if they want to dock
                     dockingPortsOpen--;
                     return vessel.fold({dockingStatus: VesselDockingStatus.Docked});
-                } else if (dockingPortsOpen === 0 && vessel.dockingStatus === VesselDockingStatus.NearbyWaitingToDock && vessel.dockingDaysRequested > 0) {
+                } else if (dockingPortsOpen === 0 && 
+                    vessel.dockingStatus === VesselDockingStatus.NearbyWaitingToDock && 
+                    vessel.dockingDaysRequested > 0 && 
+                    vessel.timeInQueue <= vessel.queueTolerance) {
                     // vessel can't dock because no ports were open. increment time-in-queue
                     return vessel.foldAndCombine(v => {return {timeInQueue: v.timeInQueue + 1}});
-                } else if (vessel.dockingStatus === VesselDockingStatus.NearbyWaitingToDock && vessel.timeInQueue > vessel.queueTolerance) {
+                } else if (vessel.dockingStatus === VesselDockingStatus.NearbyWaitingToDock
+                    && vessel.timeInQueue > vessel.queueTolerance) {
                     // vessels which cant dock after a number of turns that equal their queue tolerance must leave
                     return vessel.fold({dockingStatus: VesselDockingStatus.NearbyWaitingToLeave});
                 } else if (vessel.dockingStatus === VesselDockingStatus.Docked && vessel.dockingDaysRequested > 0) {
@@ -160,23 +174,30 @@ export async function gameLoop(stationState: StationState, log: Log, clear: () =
         }).foldAndCombine(station => {
             // player loses favor with the factions of vessels that reached their time in queue and had to warp out 
             const vessel = station.vessels.find(v => v.timeInQueue > v.queueTolerance);
-            return {factions: factions.map(faction => 
+            return {factions: station.factions.map(faction => 
                 faction.name === vessel?.faction && faction.favor !== -1 // player cannot gain or lose factions with -1 favor 
                 ? { ...faction, favor: faction.favor - 1}
                 : faction
             )};
         }).foldAndCombine(station => {
             // player loses favor with the factions of vessels that were evicted from dock
-            const vessel = station.vessels.find(v => v.dockingStatus === VesselDockingStatus.NearbyWaitingToLeave && v.dockingDaysRequested > 0);
-            return {factions: factions.map(faction => 
+            const vessel = station.vessels.find(
+              (v) =>
+                v.dockingStatus === VesselDockingStatus.WarpingOut &&
+                v.dockingDaysRequested > 0 &&
+                v.timeInQueue <= v.queueTolerance
+            );
+            return {
+              factions: station.factions.map((faction) =>
                 faction.name === vessel?.faction && faction.favor !== -1
-                ? { ...faction, favor: faction.favor - 1}
-                : faction
-            )};
+                  ? { ...faction, favor: faction.favor - 1 }
+                  : faction
+              ),
+            };
         }).foldAndCombine(station => {
             // player gains favor with the factions of vessels that reached their docking days requested and weren't evicted
             const vessel = station.vessels.find(v => v.dockingStatus === VesselDockingStatus.NearbyWaitingToLeave && v.dockingDaysRequested === 0);
-            return {factions: factions.map(faction => 
+            return {factions: station.factions.map(faction => 
                 faction.name === vessel?.faction && faction.favor !== -1
                 ? { ...faction, favor: faction.favor + 1}
                 : faction
@@ -213,7 +234,8 @@ export async function gameLoop(stationState: StationState, log: Log, clear: () =
             }
         });
          // an increasing chance that a problem happens
-        if (d100() < (20 + (stationState.daysSinceVesselSpawn * .5))) {
+         // problems shouldn't happen on the first or second turn (for sanity, and testing)
+        if (stationState.stardate > 1 && d100() < (20 + (stationState.daysSinceVesselSpawn * .5))) {
             stationState = await stationState.foldAndCombineAsync(station => problemMenu(station, log, clear));
         }
     }
@@ -232,23 +254,12 @@ const reduceMoraleWithoutFood = (stationState: StationState): Partial<StationSta
      // if there's no food, reduce morale
      if (stationState.food <= 0) {
         return { 
-            morale: subtractWithFloor(stationState.morale, 10, 0),
+            morale: subtractWithFloor(stationState.morale, stationState.crew * 10, 0),
             daysWithoutFood: stationState.daysWithoutFood + 1
         };
         
     }
     return { daysWithoutFood: 0 };
-}
-
-const reduceCrewWithoutFood = (stationState: StationState): Partial<StationState> => {
-    if (stationState.daysWithoutFood > 5) {
-        // if it's been too long without food, reduce crew!
-        return reduceModuleCrew(
-            stationState.foldAndCombine(station => { return { crew: station.crew - 1} }),
-            stationState.stationModules.find(val => val.crewApplied > 0)
-        );
-    }
-    return stationState;
 }
 
 const reduceModuleCrew = (stationState: StationState, module: StationModule | undefined): StationState => {

@@ -14,9 +14,9 @@ Manage a space station by trading with docked ships, assigning crew to modules, 
 
 better main menu viz of vessels and their tradeable resources
 
-getting modules from solving problems
+vessels should generate / use station resources
 
-getting modules from trading with vessels
+getting modules from solving problems
 
 modules should allow unique solutions to problems
 

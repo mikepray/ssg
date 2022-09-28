@@ -343,21 +343,21 @@ async function sellResourceMenu(stationState: StationState, tradingVessel: Vesse
         message: `Sell ${resource} for ${tradesResourceForCredits()} credits. Vessel can buy ${Math.abs(tradesResource())}`,
         initial: 1,
         min: 0,
-        max: tradesResource(),
+        max: Math.abs(tradesResource()),
         validate: value => {
             return value >= 0 && 
                 // can't sell more than the vessel can buy
-                tradesResource() + value <= 0 &&
+                Math.abs(tradesResource()) - value >= 0 &&
                 // can't sell more than the station has
                 stationResource() - value >= 0 &&
                 // can't take more than the vessel can afford
-                stationState.credits - (value * tradesResourceForCredits()) >= 0
+                tradingVessel.credits - (value * tradesResourceForCredits()) >= 0
         }
 
     });
     if (amount.valueToSell > 0) {
         const cont = await prompts({
-            type: 'confirm',
+            type: 'toggle',
             name: 'value',
             active: 'yes',
             inactive: 'no',

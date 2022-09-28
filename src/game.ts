@@ -12,7 +12,7 @@ import { factions } from "./data/factions";
 import { problemMenu } from "./menus/problemMenu";
 import { problems } from "./data/problems";
 
-export async function gameLoop(stardate: number, stationState: StationState, log: Log, clear: () => void) {
+export async function gameLoop(stationState: StationState, log: Log, clear: () => void): Promise<StationState> {
     if (stationState.crew === 0) {
         throw new Error("Game Over - you have no crew left!")
     }
@@ -59,7 +59,7 @@ export async function gameLoop(stardate: number, stationState: StationState, log
         initial: 0
     });
     if (input.value === 'quit') {
-        return;
+        return Promise.reject('Player Quit');
     }
     if (input.value === 'modules') {
         clear();
@@ -217,7 +217,7 @@ export async function gameLoop(stardate: number, stationState: StationState, log
             stationState = await stationState.foldAndCombineAsync(station => problemMenu(station, log, clear));
         }
     }
-    gameLoop(stardate, stationState, log, clear);
+    return stationState;
 }
 
 const spendResourcesPerCrew = (stationState: StationState): Partial<StationState> => {

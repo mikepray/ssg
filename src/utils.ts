@@ -69,7 +69,7 @@ export function getVesselColor(vessel: Vessel | undefined, factions: Faction[]):
     return vesselFaction !== undefined ? vesselFaction.hexColor : 'FFFFFF';
 }
 
-export function printTable(moduleTable: string[][]): any {
+export function printTable(moduleTable: string[][]): void {
     moduleTable.forEach(row => {
         let cells = '';
         for(let i = 0; i < row.length; i++) {
@@ -77,6 +77,11 @@ export function printTable(moduleTable: string[][]): any {
         }   
         log(cells);
     });
+}
+
+export function isCommandModuleOperational(stationState: StationState) {
+    const commandModule = stationState.stationModules.find(({name}) => name === "Command Module");
+    return commandModule && commandModule?.crewApplied >= commandModule?.crewRequired;
 }
 
 export function getUnassignedCrew(stationState: StationState) {

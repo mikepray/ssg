@@ -4,7 +4,7 @@ import { vessels } from "../data/vessels";
 import { printStationStatus } from "../game";
 import { Log, StationModule, StationState, Vessel, VesselDockingStatus } from "../types";
 import { getVesselColor, addWithCeiling, getStationDockingPorts } from "../utils";
-import { moduleMenu } from "./moduleMenu";
+import { getModuleShortCodes, moduleMenu, printModule } from "./moduleMenu";
 
 export async function dockingMenu(stationState: StationState, log: Log, clear: () => void): Promise<StationState> {
     clear();
@@ -93,7 +93,7 @@ export async function dockingMenu(stationState: StationState, log: Log, clear: (
                 name: 'value',
                 active: 'yes',
                 inactive: 'no',
-                message: `Really seize the cargo of ${vessel.name}? Your station will lose significant favor with the ${vessel.faction} `,
+                message: `Really seize the cargo of ${vessel.name}? NB: Modules for sale cannot be seized and your station will lose significant favor with the ${vessel.faction} `,
                 initial: false
             });
             if (cont.value === true) {
@@ -117,7 +117,7 @@ export async function dockingMenu(stationState: StationState, log: Log, clear: (
                             : faction
                         ),
                         vessels: vessels.map(v => v.name === vessel.name
-                        ? v.fold({tradesAir: 0, tradesFood: 0, tradesPower: 0})
+                        ? v.fold({tradesAir: 0, tradesFood: 0, tradesPower: 0, modulesForSale: []})
                         : v) }
                 })
             }
@@ -174,7 +174,8 @@ async function trade(stationState: StationState, vessel: Vessel, log: Log, clear
     vessel.modulesForSale.forEach(({creditPrice, module}) => {
         choices.push({
             title: `Buy module ${module.name} for ${creditPrice}`,
-            value: `buy${module.name}`
+            value: `buy${module.name}`,
+            description: getModuleShortCodes(module)
         })
     })
 
@@ -234,7 +235,7 @@ async function trade(stationState: StationState, vessel: Vessel, log: Log, clear
 
 async function buyModuleMenu(stationState: StationState, tradingVessel: Vessel, moduleToBuy: {creditPrice: number, module: StationModule}, log: Log, clear: () => void): Promise<TradeMutation> {
     log('This vessel is selling this module: ' )
-    moduleMenu([moduleToBuy.module], log, clear);
+    printModule(moduleToBuy.module, log);
     if (stationState.credits >= moduleToBuy.creditPrice) {
         const conf = await prompts({
             type: 'toggle',

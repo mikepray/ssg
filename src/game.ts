@@ -1,7 +1,7 @@
 import prompts, { Answers } from "prompts";
 import chalk from "chalk";
 import { Log, StationModule, StationState, Vessel, VesselDockingStatus } from "./types";
-import { addWithCeilingAndFloor, addWithFloor, calculateStorageCeilings, d100, d20, dN, getStationDockingPorts, getUnassignedCrew, getVesselColor, progressBar, subtractWithFloor } from "./utils";
+import { addWithCeilingAndFloor, addWithFloor, calculateStorageCeilings, d100, d20, dN, getStationDockingPorts, getUnassignedCrew, getVesselColor, isCommandModuleOperational, progressBar, subtractWithFloor } from "./utils";
 import { assignCrewMenu } from "./menus/assignCrewMenu";
 import { dockingMenu } from "./menus/dockingMenu";
 import { moduleMenu } from "./menus/moduleMenu";
@@ -24,6 +24,7 @@ export async function gameLoop(stationState: StationState, log: Log, clear: () =
         type: "select",
         name: "value",
         message: "Main Menu",
+        warn: "Command Module is not operational!",
         choices: [
             {
                 title: "Wait",
@@ -33,12 +34,14 @@ export async function gameLoop(stationState: StationState, log: Log, clear: () =
             {
                 title: "Docked Vessels",
                 description: "Manage docked vessels",
-                value: "docking"
+                value: "docking",
+                disabled: !isCommandModuleOperational(stationState)
             },
             {
                 title: "Nearby Vessels",
                 description: "Examine nearby vessels passing or waiting to dock",
-                value: "vessels"
+                value: "vessels",
+                disabled: !isCommandModuleOperational(stationState),
             },
             {
                 title: "Assign Crew",
@@ -63,13 +66,7 @@ export async function gameLoop(stationState: StationState, log: Log, clear: () =
     }
     if (input.value === 'modules') {
         clear();
-        moduleMenu(stationState.stationModules, log, clear);
-        await prompts({
-            type: 'confirm',
-            name: 'value',
-            message: 'Continue...',
-            initial: true
-          });
+        stationState = await moduleMenu(stationState, log, clear);
     } else if (input.value === 'docking') {
         stationState = await dockingMenu(stationState, log, clear);
     } else if (input.value === 'vessels') {

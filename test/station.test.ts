@@ -84,15 +84,18 @@ tap.equal(
   "some message"
 );
 
-// crew dies with no air
-prompts.inject(["wait"]);
-gameLoop(
-  testingStationState.fold({ air: 0 }),
-  () => {},
-  () => {}
-).then((newState: StationState) => {
-  tap.equal(newState.crew, 4);
-});
+tap.test("Test that crew dies without air", t => {
+  // crew dies with no air
+  prompts.inject(["wait"]);
+  gameLoop(
+    testingStationState.fold({ air: 0 }),
+    () => {},
+    () => {}
+  ).then((newState: StationState) => {
+    t.equal(newState.crew, 4);
+    t.end();
+  });
+})
 
 // morale reduced when no credits to pay crew.
 // important - need to disable modules, since testing command module increases morale
@@ -105,34 +108,43 @@ tap.test("Test that resources are reduced every game loop", (t) => {
     () => {},
     () => {}
   ).then((newState: StationState) => {
-    tap.equal(newState.stardate, 1);
-    tap.equal(newState.air, 100);
-    tap.equal(newState.power, 100);
-    tap.equal(newState.food, 95);
-    tap.equal(newState.morale, 100);
+    t.equal(newState.stardate, 1);
+    t.equal(newState.air, 100);
+    t.equal(newState.power, 100);
+    t.equal(newState.food, 95);
+    t.equal(newState.morale, 100);
+    t.end();
   });
-  t.end();
 });
 
-// crew dies with no food after several days
-prompts.inject(["wait"]);
-gameLoop(
-  testingStationState.fold({ food: 0, daysWithoutFood: 7 }),
-  () => {},
-  () => {}
-).then((newState: StationState) => {
-  // console.log(newState);
-  tap.equal(newState.stardate, 1);
-  tap.equal(newState.crew, 4);
-  tap.equal(newState.food, 0);
-});
+tap.test("Test that crew dies without food for several days", t => {
 
-// game over
-prompts.inject(["wait"]);
-tap.rejects(
+  // crew dies with no food after several days
+  prompts.inject(["wait"]);
   gameLoop(
-    testingStationState.fold({ crew: 0 }),
+    testingStationState.fold({ food: 0, daysWithoutFood: 7 }),
     () => {},
     () => {}
-  ).then((newState: StationState) => {})
-);
+  ).then((newState: StationState) => {
+    // console.log(newState);
+    t.equal(newState.stardate, 1);
+    t.equal(newState.crew, 4);
+    t.equal(newState.food, 0);
+    t.end();
+  });
+})
+
+tap.test("Test game over", t => {
+  // game over
+  prompts.inject(["wait"]);
+  t.rejects(
+    gameLoop(
+      testingStationState.fold({ crew: 0 }),
+      () => {},
+      () => {}
+    ).then((newState: StationState) => {})
+    );
+    t.end();
+})
+
+// tap.test("Test that previously visited vessels can ")

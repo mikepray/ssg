@@ -5,6 +5,7 @@ import prompts, { Answers } from "prompts";
 import { testingStationState } from "../data/testStartingState";
 import { StationState, StationModule } from "../types";
 import { getUnassignedCrew, getAssignedCrew } from "../utils";
+import { getModuleShortCodes } from "./moduleMenu";
 
 export async function assignCrewMenu(stationState: StationState, clear: () => void): Promise<StationState> {
     clear();
@@ -15,7 +16,7 @@ export async function assignCrewMenu(stationState: StationState, clear: () => vo
         message: `Crew: ${stationState.crew}  Unassigned: ${unassignedCrew} \n Choose a module to assign crew`,
         choices: stationState.stationModules.map(module => {
             return {
-                title: `${chalk.white.bold.bgGreen(module.name)}: ${module.crewApplied}/${module.crewRequired}`,
+                title: `${chalk.white.bold.bgGreen(module.name)}: ${module.crewApplied}/${module.crewRequired} ${getModuleShortCodes(module)}`,
                 value: module.name
             };
         }),

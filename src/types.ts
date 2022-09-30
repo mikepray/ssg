@@ -27,6 +27,7 @@ export type StationState = {
         name: string,
         stardateSinceLastSolved: number,
     }[],
+    dockingFee: 5,
     fold: (stationState: Partial<StationState>) => StationState,
     foldAndCombine: (combine: (stationState: StationState) => Partial<StationState>) => StationState,
     foldAndCombineAsync: (combine: (stationState: StationState) => Promise<Partial<StationState>>) => Promise<StationState>,
@@ -63,6 +64,7 @@ export type Vessel = {
     class: string,
     faction: string,
     /* the amount of air, power, and food the vessel or its crew consumes or generates when docked with the station */
+    generatesMorale: number, // the morale boost (or penalty) to the stations' crew while the vessel is docked
     generatesAir: number,
     generatesPower: number,
     generatesFood: number,
@@ -79,7 +81,6 @@ export type Vessel = {
         module: StationModule,
     }[],
     credits: number,
-    morale: number, // the morale boost (or penalty) to the stations' crew while the vessel is docked
     queueTolerance: number, // the amount in days the vessel will tolerate staying in the docking queue before leaving the area
     dockingDaysRequested: number, // the number of days the vessel wants to stay docked. Also used to track how long a vessel has been docked. when zero, vessel will depart
     /* the vessel's sensitivity to docking fees. 1 = fully elastic, 0 = inelastic. The more elastic, the less likely the vessel will

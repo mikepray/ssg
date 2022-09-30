@@ -14,11 +14,9 @@ Manage a space station by trading with docked ships, assigning crew to modules, 
 
 better main menu viz of vessels and their tradeable resources
 
-sell / destroy modules
-
 heat resource that builds up and needs to be given away?
 
-vessels should generate / use station resources
+vessels should generate / use station resources and pay docking fees
 
 getting modules from solving problems
 

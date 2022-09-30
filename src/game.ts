@@ -6,7 +6,7 @@ import { assignCrewMenu } from "./menus/assignCrewMenu";
 import { dockingMenu } from "./menus/dockingMenu";
 import { moduleMenu } from "./menus/moduleMenu";
 import { vesselsNearbyMenu } from "./menus/vesselsNearbyMenu";
-import { vessels } from "./data/vessels";
+import { baseVessel, vessels } from "./data/vessels";
 import { baseModule } from "./data/stationModules";
 import { factions } from "./data/factions";
 import { problemMenu } from "./menus/problemMenu";
@@ -128,6 +128,29 @@ export async function gameLoop(stationState: StationState, log: Log, clear: () =
                 food: addWithCeilingAndFloor(station.food, reducedModuleResources.food, 0, ceilings.foodStorageCeiling),
                 morale: addWithCeilingAndFloor(station.morale, reducedModuleResources.morale, 0, 100),
                 credits: addWithFloor(station.credits, reducedModuleResources.credits, 0),
+            }
+        }).foldAndCombine(station => {
+            const reducedVesselResources = station.vessels.reduce((previousValue, vessel) => {
+                if (vessel.dockingStatus === VesselDockingStatus.Docked) {
+                    return { ...baseVessel,
+                        generatesPower: previousValue.generatesPower + vessel.generatesPower,
+                        generatesAir: previousValue.generatesAir + vessel.generatesAir,
+                        generatesFood: previousValue.generatesFood + vessel.generatesFood,
+                        generatesMorale: previousValue.generatesMorale + vessel.generatesMorale,
+                    }
+                }
+                return previousValue;
+            }, baseVessel);
+            return {
+                // apply the reduced values to the station
+                power: addWithCeilingAndFloor(station.power, reducedVesselResources.generatesPower, 0, ceilings.powerStorageCeiling),
+                air: addWithCeilingAndFloor(station.air, reducedVesselResources.generatesAir, 0, ceilings.airStorageCeiling),
+                food: addWithCeilingAndFloor(station.food, reducedVesselResources.generatesFood, 0, ceilings.foodStorageCeiling),
+                morale: addWithCeilingAndFloor(station.morale, reducedVesselResources.generatesMorale, 0, 100),
+            }
+        }).foldAndCombine(station => {
+            return {
+                credits: station.credits + station.vessels.filter(({dockingStatus}) => dockingStatus === VesselDockingStatus.Docked).length
             }
         }).foldAndCombine(station => {
             let dockingPortsOpen = getStationDockingPorts(station) - station.vessels.filter(v => v.dockingStatus === VesselDockingStatus.Docked).length;

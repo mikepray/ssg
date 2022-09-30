@@ -11,6 +11,7 @@ import { baseModule } from "./data/stationModules";
 import { factions } from "./data/factions";
 import { problemMenu } from "./menus/problemMenu";
 import { problems } from "./data/problems";
+import { policyMenu } from "./menus/policyMenu";
 
 export async function gameLoop(stationState: StationState, log: Log, clear: () => void): Promise<StationState> {
     if (stationState.crew === 0) {
@@ -49,6 +50,11 @@ export async function gameLoop(stationState: StationState, log: Log, clear: () =
                 value: "crew"
             },
             {
+                title: "Station Policies",
+                description: "Set station policies",
+                value: "policy"
+            },
+            {
                 title: "List Modules",
                 description: "Examine, repair, build station modules",
                 value: "modules"
@@ -73,6 +79,8 @@ export async function gameLoop(stationState: StationState, log: Log, clear: () =
         await vesselsNearbyMenu(stationState, clear);
     } else if (input.value === 'crew') {
         stationState = await assignCrewMenu(stationState, clear);
+    } else if (input.value === 'policy') {
+        stationState = await policyMenu(stationState, log, clear);
     } else if (input.value === 'wait') {
         stationState = stationState
           .foldAndCombine(incrementStardate)
@@ -158,13 +166,15 @@ export async function gameLoop(stationState: StationState, log: Log, clear: () =
                 if (vessel.dockingStatus === VesselDockingStatus.WarpingIn) {
                     // vessels warping in start waiting to dock
                     return vessel.fold({dockingStatus: VesselDockingStatus.NearbyWaitingToDock});
-                } else if (dockingPortsOpen > 0 && vessel.dockingStatus === VesselDockingStatus.NearbyWaitingToDock && vessel.dockingDaysRequested > 0) {
+                } else if (dockingPortsOpen > 0 && 
+                    vessel.dockingStatus === VesselDockingStatus.NearbyWaitingToDock && 
+                    vessel.dockingDaysRequested > 0 &&
+                    vessel.dockingFeePriceTolerance >= station.dockingFee) {
                     // take vessels waiting to dock and dock them, if possible, and if they want to dock
                     dockingPortsOpen--;
                     return vessel.fold({dockingStatus: VesselDockingStatus.Docked});
                 } else if (dockingPortsOpen === 0 && 
                     vessel.dockingStatus === VesselDockingStatus.NearbyWaitingToDock && 
-                    vessel.dockingDaysRequested > 0 && 
                     vessel.timeInQueue <= vessel.queueTolerance) {
                     // vessel can't dock because no ports were open. increment time-in-queue
                     return vessel.foldAndCombine(v => {return {timeInQueue: v.timeInQueue + 1}});

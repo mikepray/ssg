@@ -30,6 +30,7 @@ export const baseStation = {
   previouslyVisitedVesselNames: [],
   previouslySolvedProblems: [],
   vessels: [],
+  dockingFee: 0,
   fold: function (props: Partial<StationState>): StationState {
     return { ...this, ...props };
   },

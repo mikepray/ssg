@@ -27,7 +27,7 @@ export type StationState = {
         name: string,
         stardateSinceLastSolved: number,
     }[],
-    dockingFee: 5,
+    dockingFee: number,
     fold: (stationState: Partial<StationState>) => StationState,
     foldAndCombine: (combine: (stationState: StationState) => Partial<StationState>) => StationState,
     foldAndCombineAsync: (combine: (stationState: StationState) => Promise<Partial<StationState>>) => Promise<StationState>,
@@ -83,9 +83,8 @@ export type Vessel = {
     credits: number,
     queueTolerance: number, // the amount in days the vessel will tolerate staying in the docking queue before leaving the area
     dockingDaysRequested: number, // the number of days the vessel wants to stay docked. Also used to track how long a vessel has been docked. when zero, vessel will depart
-    /* the vessel's sensitivity to docking fees. 1 = fully elastic, 0 = inelastic. The more elastic, the less likely the vessel will
-    be willing to dock with the station if it charges higher docking fees */
-    dockingFeePriceElasticity: number, 
+    /* the vessel's sensitivity to docking fees. n = the maximum docking fee a vessel will pay to dock at the station  */
+    dockingFeePriceTolerance: number, 
     timeInQueue: number, 
     rarity: number, // -1 is never, 0 is extremely common, 1 is extremely rare
     respawnWait: number, // -1 will never come back, otherwise the number of days the vessel will be away before it has a chance to respawn

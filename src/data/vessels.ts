@@ -23,6 +23,8 @@ export const baseVessel: Vessel = {
     rarity: -1,
     respawnWait: 11,
     modulesForSale: [ ],
+    crewForHire: 0,
+    crewHireFee: 0,
     dockingStatus: undefined,
     fold: function (props: Partial<Vessel>): Vessel {
         return { ...this, ...props };
@@ -150,10 +152,9 @@ export const vessels: Vessel[] = [
         faction: "New Hague Merchants",
         
         tradesPower: -30,
-        tradesFood: 300,
         tradesPowerForCredits: 10,
-        tradesFoodForCredits: 5,
-        credits: 200,
+        crewForHire: 1,
+        crewHireFee: 100,
         generatesMorale: 1,
         queueTolerance: 2,
         dockingDaysRequested: 3,

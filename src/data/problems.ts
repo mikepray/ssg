@@ -55,4 +55,56 @@ export const problems: ProblemNarrative[] = [
       },
     ],
   },
+  {
+    name: "Solar Flare",
+    narrative: `The system's star is erupting in an electromagnetic storm impact the system.  systems  `,
+    rarity: 1,
+    respawnWait: 100,
+    questions: {
+      type: "select",
+      name: "answer",
+      message: "What is your choice?",
+      choices: [
+        {
+          title: `Shut down the station systems (unassign all crew)`,
+          value: "shutDown",
+        },
+        {
+          title: "",
+          value: "brace",
+        },
+      ],
+    },
+    results: [
+      {
+        answer: "move",
+        mutation: (station) => {
+            return {
+                narrative: 'The station fires thrusters and modifies the orbit to miss the meteors (-10 power)',
+                mutateStation: {
+                    power: station.power - 10,
+                },
+          };
+        },
+      },
+      {
+        answer: "brace",
+        mutation: (station) => {
+          const roll = d100();
+          const airLost = roll > 60 ? roll > 70 ? roll > 80 ? 
+            0 : 2 : 3 : 7;
+          const narrative = roll > 60 && roll < 80 
+          ? chalk.red(`Meteors hit the station! ${airLost} air is lost before repairs can be made`)
+          : chalk.greenBright(`The meteors pass narrowly by the station and no air is lost!`)
+          return {
+            narrative: narrative,
+            mutateStation: {
+            air:
+              station.air - airLost
+            }
+          };
+        },
+      },
+    ],
+  },
 ];

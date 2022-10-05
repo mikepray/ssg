@@ -5,6 +5,7 @@ import { testingStationState } from "../src/data/testStartingState";
 import { baseVessel, vessels } from "../src/data/vessels";
 import { gameLoop } from "../src/game";
 import { StationState, VesselDockingStatus } from "../src/types";
+import { getUnassignedCrew, getAssignedCrew } from "../src/utils";
 
 tap.test("testing fold and foldAndCombine", (t) => {
   const newStationState = testingStationState
@@ -23,31 +24,6 @@ tap.test("testing fold and foldAndCombine", (t) => {
   t.end();
 });
 
-tap.test("testing morale with no credits", (t) => {
-  prompts.inject(["wait"]);
-  gameLoop(
-    testingStationState.fold({ credits: 0, stationModules: [], morale: 50 }),
-    () => {},
-    () => {}
-  ).then((newState: StationState) => {
-    t.equal(newState.credits, 0);
-    t.equal(newState.morale, 40, "Test that morale is reduced with no credits");
-    t.end();
-  });
-});
-
-tap.test("testing morale with no food", (t) => {
-  prompts.inject(["wait"]);
-  gameLoop(
-    testingStationState.fold({ food: 0, stationModules: [], morale: 50 }),
-    () => {},
-    () => {}
-  ).then((newState: StationState) => {
-    t.equal(newState.morale, 0, "Test that morale is reduced with no food");
-    t.end();
-  });
-});
-
 tap.test("testing credits reduced by crew salary", (t) => {
   prompts.inject(["wait"]);
   gameLoop(
@@ -57,7 +33,7 @@ tap.test("testing credits reduced by crew salary", (t) => {
   ).then((newState: StationState) => {
     t.equal(
       newState.credits,
-      990,
+      975,
       "Test that credits is reduced per crew by salary"
     );
     t.end();
@@ -93,6 +69,7 @@ tap.test("Test that crew dies without air", t => {
     () => {}
   ).then((newState: StationState) => {
     t.equal(newState.crew, 4);
+    t.equal(getUnassignedCrew(newState) + getAssignedCrew(newState), newState.crew);
     t.end();
   });
 })
@@ -111,8 +88,7 @@ tap.test("Test that resources are reduced every game loop", (t) => {
     t.equal(newState.stardate, 1);
     t.equal(newState.air, 100);
     t.equal(newState.power, 100);
-    t.equal(newState.food, 95);
-    t.equal(newState.morale, 100);
+    t.equal(newState.food, 85, "Crew should consume 3 food per turn");
     t.end();
   });
 });
@@ -130,6 +106,25 @@ tap.test("Test that crew dies without food for several days", t => {
     t.equal(newState.stardate, 1);
     t.equal(newState.crew, 4);
     t.equal(newState.food, 0);
+    t.equal(getUnassignedCrew(newState) + getAssignedCrew(newState), newState.crew);
+    t.end();
+  });
+})
+
+tap.test("Test that crew does not die without food for several days", t => {
+
+  // crew dies with no food after several days
+  prompts.inject(["wait"]);
+  gameLoop(
+    testingStationState.fold({ food: 0, daysWithoutFood: 3 }),
+    () => {},
+    () => {}
+  ).then((newState: StationState) => {
+    // console.log(newState);
+    t.equal(newState.stardate, 1);
+    t.equal(newState.crew, 5);
+    t.equal(newState.food, 0);
+    t.equal(getUnassignedCrew(newState) + getAssignedCrew(newState), newState.crew);
     t.end();
   });
 })
@@ -146,5 +141,3 @@ tap.test("Test game over", t => {
     );
     t.end();
 })
-
-// tap.test("Test that previously visited vessels can ")

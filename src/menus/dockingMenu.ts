@@ -178,6 +178,13 @@ async function trade(stationState: StationState, vessel: Vessel, log: Log, clear
             description: getModuleShortCodes(module)
         })
     })
+    for (let i = 0; i < vessel.crewForHire; i++) {        
+        choices.push({
+            title: `Hire crew for ${vessel.crewHireFee}`,
+            description: `Hire crew`,
+            value: `hireCrew`,
+        })
+    }
 
     choices.push({
         title: `Back`,
@@ -228,10 +235,45 @@ async function trade(stationState: StationState, vessel: Vessel, log: Log, clear
         if (mod) {
             return await buyModuleMenu(stationState, vessel, mod, log, clear); 
         }
+        if (tradeAnswer.value === 'hireCrew') {
+            return await hireCrewMenu(stationState, vessel, log, clear);
+        }
     }
 
     return { mutateStation: stationState, mutateVessel: vessel };
 }
+
+
+async function hireCrewMenu(stationState: StationState, tradingVessel: Vessel, log: Log, clear: () => void): Promise<TradeMutation> {
+    if (stationState.credits >= tradingVessel.crewHireFee) {
+        const conf = await prompts({
+            type: 'toggle',
+            name: 'value',
+            active: 'yes',
+            inactive: 'no',
+            message: `Hire crew for ${tradingVessel.crewHireFee} credits?`,
+            initial: true
+        });
+        if (conf.value === true) {
+            return {
+                mutateStation: { 
+                    credits: stationState.credits - tradingVessel.crewHireFee,
+                    crew: stationState.crew + 1,
+                 },
+                mutateVessel: { ...tradingVessel,
+                    credits: tradingVessel.credits + tradingVessel.crewHireFee,
+                    crewForHire: tradingVessel.crewForHire - 1
+                }
+            }
+        }
+    } else {
+        log('The station does not have enough credits to hire this crew');
+    }
+    return {
+        mutateStation: { }, mutateVessel: tradingVessel
+    }
+}
+
 
 async function buyModuleMenu(stationState: StationState, tradingVessel: Vessel, moduleToBuy: {creditPrice: number, module: StationModule}, log: Log, clear: () => void): Promise<TradeMutation> {
     log('This vessel is selling this module: ' )

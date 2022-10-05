@@ -16,7 +16,7 @@ export const testingStationState: StationState = {
   food: 100,
   credits: 1000,
   funding: 10,
-  crewSalary: 2,
+  crewSalary: 5,
   belongsToFaction: "New Hague Merchants",
   dockingFee: 5,
 };

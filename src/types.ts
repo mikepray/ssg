@@ -15,6 +15,7 @@ export type StationState = {
     daysSinceVesselSpawn: number,
     vessels: Vessel[],
     funding: number,
+    crewFoodRation: number,
     crewSalary: number,
     stationModules: StationModule[],
     belongsToFaction: string,
@@ -76,6 +77,8 @@ export type Vessel = {
     tradesAirForCredits: number,
     tradesPowerForCredits: number,
     tradesFoodForCredits: number,
+    crewForHire: number,
+    crewHireFee: number,
     modulesForSale: {
         creditPrice: number,
         module: StationModule,

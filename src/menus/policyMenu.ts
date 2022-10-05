@@ -23,6 +23,11 @@ export async function policyMenu(
             description: "Set the salary you pay crew per day. Higher salary will help with morale",
             value: "crewSalary"
         },
+        {
+            title: "Food Rationing",
+            description: "Crew normally consume 3 units of food per day. Lower amounts will hurt morale",
+            value: "foodRation"
+        },
       ],
       message: "Choose a policy to manage",
     });
@@ -54,6 +59,21 @@ export async function policyMenu(
         });
         if (crewSalary.value) {
             return stationState.fold({ crewSalary: crewSalary.value });
+        }
+    }
+
+    if (policyChoice.value === "foodRation") {
+        const foodRation = await prompts({
+            type: "number",
+            name: "value",
+            message: "Set Crew Food Ration",
+            initial: stationState.crewFoodRation,
+            validate: value => {
+                return value >= 0               
+            }
+        });
+        if (foodRation.value) {
+            return stationState.fold({ crewFoodRation: foodRation.value });
         }
     }
 

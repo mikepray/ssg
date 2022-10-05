@@ -116,3 +116,28 @@ export function d20() {
 export function dN(n: number) {
     return Math.floor(Math.random() * n) + 1;
 }
+
+export function logWithCeiling(x: number, limit?: number, ramp?: number) {
+    if (!limit) {
+        limit = 10;
+    }
+    if (!ramp) {
+        ramp = 1;
+    }
+
+    // effectively a logarithmic function with a limit
+    // higher the ramp, the slower the increase in the multiplier
+
+    // ramp should be within 1 and 10. values higher than 10 require very high x to hit the limit
+    // ramp value of less than 1 will hit the limit very quickly
+    // example values: 
+    // 5 = getMultiplier(1, 10, 1);
+    // 7.5 = getMultiplier(3, 10, 1);
+    // 9.096 = getMultiplier(10, 10, 1);
+
+    // example values: 
+    // .9 = getMultiplier(1, 10, 10);
+    // 2.308 = getMultiplier(3, 10, 10);
+    // 5 = getMultiplier(10, 10, 10);
+    return ((x - 1) * limit) / (x + ramp)
+}

@@ -1,14 +1,13 @@
 import prompts, { Answers } from "prompts";
 import chalk from "chalk";
 import { Log, StationModule, StationState, Vessel, VesselDockingStatus } from "./types";
-import { addWithCeilingAndFloor, addWithFloor, calculateStorageCeilings, d100, d20, dN, getStationDockingPorts, getUnassignedCrew, getVesselColor, isCommandModuleOperational, progressBar, subtractWithFloor } from "./utils";
+import { addWithCeiling, addWithCeilingAndFloor, addWithFloor, calculateStorageCeilings, d100, d20, dN, logWithCeiling as logWithCeiling, getStationDockingPorts, getUnassignedCrew, getVesselColor, isCommandModuleOperational, progressBar, subtractWithFloor } from "./utils";
 import { assignCrewMenu } from "./menus/assignCrewMenu";
 import { dockingMenu } from "./menus/dockingMenu";
 import { moduleMenu } from "./menus/moduleMenu";
 import { vesselsNearbyMenu } from "./menus/vesselsNearbyMenu";
 import { baseVessel, vessels } from "./data/vessels";
 import { baseModule } from "./data/stationModules";
-import { factions } from "./data/factions";
 import { problemMenu } from "./menus/problemMenu";
 import { problems } from "./data/problems";
 import { policyMenu } from "./menus/policyMenu";
@@ -86,7 +85,8 @@ export async function gameLoop(stationState: StationState, log: Log, clear: () =
           .foldAndCombine(incrementStardate)
           .foldAndCombine(addFunding)
           .foldAndCombine(spendResourcesPerCrew)
-          .foldAndCombine(reduceMoraleWithoutFood)
+          .foldAndCombine(reduceMorale)
+          .foldAndCombine(addMorale)
           .foldAndCombine((station) => {
             if (station.daysWithoutFood > 5) {
                 // if it's been too long without food, reduce crew!
@@ -157,8 +157,13 @@ export async function gameLoop(stationState: StationState, log: Log, clear: () =
                 morale: addWithCeilingAndFloor(station.morale, reducedVesselResources.generatesMorale, 0, 100),
             }
         }).foldAndCombine(station => {
+            // charge a docking fee to vessels
+            // vessels pay the fee, but only if they have money. it's up to the player to evict non-paying vessels
             return {
-                credits: station.credits + station.vessels.filter(({dockingStatus}) => dockingStatus === VesselDockingStatus.Docked).length
+                credits: station.credits + station.vessels.filter(({dockingStatus}) => dockingStatus === VesselDockingStatus.Docked).length * station.dockingFee,
+                vessels: station.vessels.map(v => {
+                    return v.dockingStatus === VesselDockingStatus.Docked ? { ...v, credits: subtractWithFloor(v.credits, station.dockingFee, 0) } : v;
+                })
             }
         }).foldAndCombine(station => {
             let dockingPortsOpen = getStationDockingPorts(station) - station.vessels.filter(v => v.dockingStatus === VesselDockingStatus.Docked).length;
@@ -198,6 +203,15 @@ export async function gameLoop(stationState: StationState, log: Log, clear: () =
                 }
                 return vessel;
             })};
+        }).foldAndCombine(station => {
+            // there's an increasing chance that crew will leave the station on undocking vessels if morale is low enough
+            if (station.vessels.some(v => v.dockingDaysRequested === 0 && v.dockingStatus === VesselDockingStatus.NearbyWaitingToLeave)) {
+                return reduceModuleCrew(
+                    station.foldAndCombine((s) => { return { crew: s.morale <= 75 && d100() > s.morale ? s.crew - 1 : s.crew }}),
+                    station.stationModules.find(({crewApplied}) => crewApplied > 0)
+                  )
+            }
+            return station;
         }).foldAndCombine(station => {
             // remove all vessels with no docking status from the station state
             return { vessels: station.vessels.filter(value => value.dockingStatus !== undefined) }
@@ -276,20 +290,36 @@ const spendResourcesPerCrew = (stationState: StationState): Partial<StationState
     return { 
         credits: subtractWithFloor(stationState.credits, stationState.crew * stationState.crewSalary, 0),
         air: subtractWithFloor(stationState.air, stationState.crew, 0),
-        food: subtractWithFloor(stationState.food, stationState.crew, 0)
+        food: subtractWithFloor(stationState.food, stationState.crew * stationState.crewFoodRation, 0),
     };
 }
 
-const reduceMoraleWithoutFood = (stationState: StationState): Partial<StationState> => {
-     // if there's no food, reduce morale
-     if (stationState.food <= 0) {
-        return { 
-            morale: subtractWithFloor(stationState.morale, stationState.crew * 10, 0),
-            daysWithoutFood: stationState.daysWithoutFood + 1
-        };
-        
-    }
-    return { daysWithoutFood: 0 };
+// morale addition (independent of number of crew)
+export const reduceMorale = (stationState: StationState): Partial<StationState> => {
+    let moraleReduction = 0;
+    moraleReduction -= (3 - stationState.crewFoodRation) * 3; // reduce if food ration under 3
+    moraleReduction -= stationState.food <= 0 ? 20 : 0; // reduce morale by 10 if no food
+    moraleReduction -= stationState.air <= 0 ? 100 : 0; // reduce morale by 100 if no air
+    moraleReduction -= 5 - stationState.crewSalary; // reduce by 1 per crew for every value below 5
+    moraleReduction -= stationState.credits <= 0 ? 5 : 0 // reduce by 5 if no credits
+
+    return { 
+        morale: addWithFloor(stationState.morale, moraleReduction - 1, 0),
+        daysWithoutFood: stationState.food <= 0 ? stationState.daysWithoutFood + 1 : 0
+    };   
+}
+
+export const addMorale = (stationState: StationState): Partial<StationState> => {
+    let moraleAddition = stationState.crewFoodRation > 3 
+        ? addWithCeiling(0, stationState.crewFoodRation, 6)
+        : 0;
+    moraleAddition += stationState.credits > 0 && stationState.crewSalary > 5 
+        ? addWithCeiling(0, stationState.crewSalary, 15)
+        : 0
+
+    return { 
+        morale: addWithCeiling(stationState.morale, moraleAddition, 100),
+    };   
 }
 
 const reduceModuleCrew = (stationState: StationState, module: StationModule | undefined): StationState => {

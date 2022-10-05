@@ -14,9 +14,10 @@ export const baseStation = {
   food: 0,
   credits: 0,
   funding: 0,
-  crewSalary: 0,
+  crewSalary: 5,
   daysWithoutFood: 0,
   daysSinceVesselSpawn: 0,
+  crewFoodRation: 3,
   belongsToFaction: "New Hague Merchants",
   factions: factions,
   stationModules: stationModules.filter(

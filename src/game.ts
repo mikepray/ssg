@@ -400,13 +400,28 @@ export function printStationStatus(stationState: StationState, log: Log, clear: 
 function spawnVessel(stationState: StationState): Vessel | undefined {
     let vessel: Vessel | undefined = undefined;
     // an increasing chance that a vessel spawns
-    if (d100() <= (30 + (stationState.daysSinceVesselSpawn * 2))) {
-        const rarity = d20();
-        // find vessels according to rarity. don't consider vessels that have visited previously
-        const candidateVesselsToSpawn = vessels.filter(vessel => 
-            vessel.rarity > 0 && vessel.rarity < rarity &&
-            !vesselPreviouslyVisited(vessel.name, stationState.previouslyVisitedVesselNames) );
-        vessel = candidateVesselsToSpawn[dN(candidateVesselsToSpawn.length) - 1];
+    if (
+      d100() <=
+      stationState.stationModules.reduce((prev, curr) => {
+        return {
+          ...baseModule,
+          vesselAttraction: curr.vesselAttraction + prev.vesselAttraction,
+        };
+      }, baseModule).vesselAttraction +
+        stationState.daysSinceVesselSpawn * 2
+    ) {
+      const rarity = d20();
+      // find vessels according to rarity. don't consider vessels that have visited previously
+      const candidateVesselsToSpawn = vessels.filter(
+        (vessel) =>
+          vessel.rarity > 0 &&
+          vessel.rarity < rarity &&
+          !vesselPreviouslyVisited(
+            vessel.name,
+            stationState.previouslyVisitedVesselNames
+          )
+      );
+      vessel = candidateVesselsToSpawn[dN(candidateVesselsToSpawn.length) - 1];
     }
     return vessel;
 }

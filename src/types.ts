@@ -38,7 +38,7 @@ export type StationModule = {
     name: string,
     description: string,
     /* resource cost per day. positive gains resource, negative spends resource */
-    rarity: number, // 0 is extremely common, 1 is extremely rare, -1 is never
+    rarity: number, // -1 is never, 0 is extremely common, 20 is extremely rare
     power: number,
     air: number,
     food: number,
@@ -51,6 +51,8 @@ export type StationModule = {
     foodStorage: number,
     creditPurchaseCost: number,
     dockingPorts: number,
+    vesselAttraction: number,
+    mutateStation: (stationState: Partial<StationState>) => Partial<StationState>,
     fold: (stationModule: Partial<StationModule>) => StationModule,
     foldAndCombine: (combine: (stationModule: StationModule) => Partial<StationModule>) => StationModule,
     foldAndCombineAsync:(combine: (stationModule: StationModule) => Partial<StationModule>) => StationModule,
@@ -89,9 +91,10 @@ export type Vessel = {
     /* the vessel's sensitivity to docking fees. n = the maximum docking fee a vessel will pay to dock at the station  */
     dockingFeePriceTolerance: number, 
     timeInQueue: number, 
-    rarity: number, // -1 is never, 0 is extremely common, 1 is extremely rare
+    rarity: number, // -1 is never, 1 is extremely common, 20 is very rare
     respawnWait: number, // -1 will never come back, otherwise the number of days the vessel will be away before it has a chance to respawn
     dockingStatus: VesselDockingStatus | undefined, 
+    mutateStation: (stationState: Partial<StationState>) => Partial<StationState>,
     fold: (vessel: Partial<Vessel>) => Vessel,
     foldAndCombine: (combine: (vessel: Vessel) => Partial<Vessel>) => Vessel,
     foldAndCombineAsync: (combine: (vessel: Vessel) => Partial<Vessel>) => Vessel,
@@ -115,7 +118,7 @@ export type Faction = {
 export type ProblemNarrative = { 
     name: string,
     narrative: string,
-    questions: prompts.PromptObject<string>,
+    questions: (stationState: StationState) => prompts.PromptObject<string>,
     results: ProblemResult[],
     rarity: number,
     respawnWait: number,

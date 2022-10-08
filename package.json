@@ -9,7 +9,8 @@
   },
   "scripts": {
     "start": "tsc && node dist/main.js",
-    "test": "tsc && tsc -p test/tsconfig.json && tap test/dist/**/*.test.js --snapshot"
+    "test": "tsc && tsc -p test/tsconfig.json && tap test/dist/**/*.test.js --snapshot",
+    "test-problem": "tsc && node dist/testProblem.js"
   },
   "dependencies": {
     "chalk": "4.1.2",

@@ -28,6 +28,10 @@ export type StationState = {
         name: string,
         stardateSinceLastSolved: number,
     }[],
+    problemSequencesInProgress: {
+        name: string,
+        indexOfLastSequenceSolved: number,
+    }[],
     dockingFee: number,
     fold: (stationState: Partial<StationState>) => StationState,
     foldAndCombine: (combine: (stationState: StationState) => Partial<StationState>) => StationState,
@@ -52,11 +56,13 @@ export type StationModule = {
     creditPurchaseCost: number,
     dockingPorts: number,
     vesselAttraction: number,
-    mutateStation: (stationState: Partial<StationState>) => Partial<StationState>,
+    mutateStation: StationMutation,
     fold: (stationModule: Partial<StationModule>) => StationModule,
     foldAndCombine: (combine: (stationModule: StationModule) => Partial<StationModule>) => StationModule,
     foldAndCombineAsync:(combine: (stationModule: StationModule) => Partial<StationModule>) => StationModule,
 }
+
+export type StationMutation = (stationState: StationState) => Partial<StationState>;
 
 export type DockRing = {
     vessel?: Vessel
@@ -94,7 +100,7 @@ export type Vessel = {
     rarity: number, // -1 is never, 1 is extremely common, 20 is very rare
     respawnWait: number, // -1 will never come back, otherwise the number of days the vessel will be away before it has a chance to respawn
     dockingStatus: VesselDockingStatus | undefined, 
-    mutateStation: (stationState: Partial<StationState>) => Partial<StationState>,
+    mutateStation: StationMutation,
     fold: (vessel: Partial<Vessel>) => Vessel,
     foldAndCombine: (combine: (vessel: Vessel) => Partial<Vessel>) => Vessel,
     foldAndCombineAsync: (combine: (vessel: Vessel) => Partial<Vessel>) => Vessel,
@@ -117,16 +123,20 @@ export type Faction = {
 
 export type ProblemNarrative = { 
     name: string,
-    narrative: string,
-    questions: (stationState: StationState) => prompts.PromptObject<string>,
-    results: ProblemResult[],
     rarity: number,
-    respawnWait: number,
+    respawnWait: number, // the number of days that must pass before this problem can be reencountered, 
+    // or before the next problem in the sequence can be encountered
+    narrativeSequence: {
+        narrative: string,
+        activationPredicate: (stationState: StationState) => boolean,
+        questions: (stationState: StationState) => prompts.PromptObject<string>,
+        results: ProblemResult[],
+    }[],
 }
 
 export type ProblemResult = {
     answer: string,
-    mutation: (station: StationState) => { narrative: string, mutateStation: Partial<StationState> }
+    mutateStation: (station: StationState) => { narrative: string, mutateStation: Partial<StationState> }
 }
 
 export type StartingOptions = {

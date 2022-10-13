@@ -1,4 +1,5 @@
 import { StationModule, StationState } from "../types";
+import { subtractWithFloor } from "../utils";
 
 export const baseModule: StationModule = {
     name: "Prototype Module",
@@ -46,6 +47,9 @@ export const stationModules: StationModule[] = [
       creditPurchaseCost: -1,
       dockingPorts: 2,
       vesselAttraction: 5,
+      // mutateStation: (stationState) => {
+      //   return { power: subtractWithFloor(stationState.power, 2, 0) }
+      // }
     },
     {
       ...baseModule,

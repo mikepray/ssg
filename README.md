@@ -14,7 +14,9 @@ Manage a space station by trading with docked ships, assigning crew to modules, 
 
 better main menu viz of vessels and their tradeable resources
 
-station attraction and promotion (calculated from a value in modules)
+station attraction and promotion (calculated from a value in modules) (needs testing)
+
+sequential problem narratives, or tree-based ones. conditional narratives
 
 faction goals (ex, 50 credits/day or total vessels docked or something) 
 
@@ -25,6 +27,8 @@ science resource that is sold/given to certain vessels
 getting modules from solving problems
 
 modules should allow unique solutions to problems
+
+reduce crew from idle pool first. 
 
 Module ideas:
 - tractor beam

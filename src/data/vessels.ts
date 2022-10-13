@@ -1,4 +1,4 @@
-import { Vessel, VesselDockingStatus } from "../types";
+import { StationState, Vessel, VesselDockingStatus } from "../types";
 import { baseModule } from "./stationModules";
 
 export const baseVessel: Vessel = {
@@ -26,6 +26,9 @@ export const baseVessel: Vessel = {
     crewForHire: 0,
     crewHireFee: 0,
     dockingStatus: undefined,
+    mutateStation: function(stationState: Partial<StationState>): Partial<StationState> {
+        return stationState;
+    },
     fold: function (props: Partial<Vessel>): Vessel {
         return { ...this, ...props };
     },

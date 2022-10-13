@@ -1,6 +1,6 @@
 import prompts, { Answers } from "prompts";
 import chalk from "chalk";
-import { Log, StationModule, StationState, Vessel, VesselDockingStatus } from "./types";
+import { Log, StationModule, StationMutation, StationState, Vessel, VesselDockingStatus } from "./types";
 import { addWithCeiling, addWithCeilingAndFloor, addWithFloor, calculateStorageCeilings, d100, d20, dN, logWithCeiling as logWithCeiling, getStationDockingPorts, getUnassignedCrew, getVesselColor, isCommandModuleOperational, progressBar, subtractWithFloor } from "./utils";
 import { assignCrewMenu } from "./menus/assignCrewMenu";
 import { dockingMenu } from "./menus/dockingMenu";
@@ -11,6 +11,8 @@ import { baseModule } from "./data/stationModules";
 import { problemMenu } from "./menus/problemMenu";
 import { problems } from "./data/problems";
 import { policyMenu } from "./menus/policyMenu";
+import { isModuleNamespaceObject } from "util/types";
+import { baseStation } from "./data/station";
 
 export async function gameLoop(stationState: StationState, log: Log, clear: () => void): Promise<StationState> {
     if (stationState.crew === 0) {
@@ -137,6 +139,15 @@ export async function gameLoop(stationState: StationState, log: Log, clear: () =
                 morale: addWithCeilingAndFloor(station.morale, reducedModuleResources.morale, 0, 100),
                 credits: addWithFloor(station.credits, reducedModuleResources.credits, 0),
             }
+        }).foldAndCombine((station) => {
+                let state: StationState = {...station};
+                    station.stationModules.forEach((module) => {
+                    if (module.crewApplied >= module.crewRequired && station.power + module.power >= 0) {
+                        state = { ...state, ...module.mutateStation(station) };
+                    }
+                })
+
+                return state;
         }).foldAndCombine(station => {
             const reducedVesselResources = station.vessels.reduce((previousValue, vessel) => {
                 if (vessel.dockingStatus === VesselDockingStatus.Docked) {
@@ -205,9 +216,9 @@ export async function gameLoop(stationState: StationState, log: Log, clear: () =
             })};
         }).foldAndCombine(station => {
             // there's an increasing chance that crew will leave the station on undocking vessels if morale is low enough
-            if (station.vessels.some(v => v.dockingDaysRequested === 0 && v.dockingStatus === VesselDockingStatus.NearbyWaitingToLeave)) {
-                return reduceModuleCrew(
-                    station.foldAndCombine((s) => { return { crew: s.morale <= 75 && d100() > s.morale ? s.crew - 1 : s.crew }}),
+            if (station.vessels.some(v => v.dockingDaysRequested === 0 && v.dockingStatus === VesselDockingStatus.NearbyWaitingToLeave)
+            && station.morale <= 75 && d100() > station.morale) {
+                return reduceModuleCrew(station.foldAndCombine(s => { return { crew: s.crew - 1}}),
                     station.stationModules.find(({crewApplied}) => crewApplied > 0)
                   )
             }
@@ -273,13 +284,17 @@ export async function gameLoop(stationState: StationState, log: Log, clear: () =
             return {
                 previouslySolvedProblems: station.previouslySolvedProblems.filter(problem => {
                     const fullProblem = problems.find(fullProblem => fullProblem.name === problem.name);
-                    return fullProblem && station.stardate < problem.stardateSinceLastSolved + fullProblem.respawnWait;
+                    // keep problems that 
+                    return fullProblem && 
+                    // keep only problems with a non -1 respawn wait and...
+                    fullProblem.respawnWait > -1 && 
+                    // keep problems that have not reached their respawn wait time
+                    station.stardate < problem.stardateSinceLastSolved + fullProblem.respawnWait;
                 })
             }
         });
-         // an increasing chance that a problem happens
          // problems shouldn't happen on the first or second turn (for sanity, and testing)
-        if (stationState.stardate > 1 && d100() < (20 + (stationState.daysSinceVesselSpawn * .5))) {
+        if (stationState.stardate > 1 && d100() < (20)) {
             stationState = await stationState.foldAndCombineAsync(station => problemMenu(station, log, clear));
         }
     }
@@ -322,16 +337,15 @@ export const addMorale = (stationState: StationState): Partial<StationState> => 
     };   
 }
 
-const reduceModuleCrew = (stationState: StationState, module: StationModule | undefined): StationState => {
+export const reduceModuleCrew = (stationState: StationState, module: StationModule | undefined): StationState => {
     if (module) {
-        return stationState.foldAndCombine(state => {
             return { 
-                stationModules: state.stationModules.map(mod => 
+                ...stationState,
+                stationModules: stationState.stationModules.map(mod => 
                 mod.name === module.name
                 ? module.foldAndCombine(m => {return { crewApplied: m.crewApplied - 1 }}) 
                 : mod)
             };
-        });
     }
     return stationState
 }

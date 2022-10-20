@@ -2,7 +2,7 @@ import chalk from "chalk";
 import prompts from "prompts";
 import { problems } from "../data/problems";
 import { StationState, Log, ProblemNarrative } from "../types";
-import { d20, dN } from "../utils";
+import { d20, dN } from "../dice";
 
 export async function problemMenu(
   stationState: StationState,

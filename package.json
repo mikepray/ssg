@@ -9,7 +9,7 @@
   },
   "scripts": {
     "start": "tsc && node dist/main.js",
-    "test": "tsc && tsc -p test/tsconfig.json && tap test/dist/**/*.test.js --snapshot",
+    "test": "tsc -p test/tsconfig.json && tap ./dist/**/*.test.js --snapshot",
     "test-problem": "tsc && node dist/testProblem.js"
   },
   "dependencies": {

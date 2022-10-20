@@ -4,7 +4,7 @@ import { stationModules } from "../src/data/stationModules";
 import { testingStationState } from "../src/data/testStartingState";
 import { baseVessel, vessels } from "../src/data/vessels";
 import { gameLoop } from "../src/game";
-import { StationState, VesselDockingStatus } from "../src/types";
+import { noOp, StationState, VesselDockingStatus } from "../src/types";
 import { getUnassignedCrew, getAssignedCrew } from "../src/utils";
 
 tap.test("testing fold and foldAndCombine", (t) => {
@@ -28,8 +28,8 @@ tap.test("testing credits reduced by crew salary", (t) => {
   prompts.inject(["wait"]);
   gameLoop(
     testingStationState.fold({ funding: 0 }),
-    () => {},
-    () => {}
+    noOp,
+    noOp,
   ).then((newState: StationState) => {
     t.equal(
       newState.credits,
@@ -44,8 +44,8 @@ tap.test("test that funding is increased", (t) => {
   prompts.inject(["wait"]);
   gameLoop(
     testingStationState.fold({ funding: 10, crewSalary: 0 }),
-    () => {},
-    () => {}
+    noOp,
+    noOp,
   ).then((newState: StationState) => {
     t.equal(newState.credits, 1000 + 10, "Test that funding is increased");
     t.end();
@@ -65,8 +65,8 @@ tap.test("Test that crew dies without air", t => {
   prompts.inject(["wait"]);
   gameLoop(
     testingStationState.fold({ air: 0 }),
-    () => {},
-    () => {}
+    noOp,
+    noOp,
   ).then((newState: StationState) => {
     t.equal(newState.crew, 4);
     t.equal(getUnassignedCrew(newState) + getAssignedCrew(newState), newState.crew);
@@ -82,8 +82,8 @@ tap.test("Test that resources are reduced every game loop", (t) => {
   prompts.inject(["wait"]);
   gameLoop(
     testingStationState,
-    () => {},
-    () => {}
+    noOp,
+    noOp,
   ).then((newState: StationState) => {
     t.equal(newState.stardate, 1);
     t.equal(newState.air, 100);
@@ -99,8 +99,8 @@ tap.test("Test that crew dies without food for several days", t => {
   prompts.inject(["wait"]);
   gameLoop(
     testingStationState.fold({ food: 0, daysWithoutFood: 7 }),
-    () => {},
-    () => {}
+    noOp,
+    noOp,
   ).then((newState: StationState) => {
     // console.log(newState);
     t.equal(newState.stardate, 1);
@@ -117,8 +117,8 @@ tap.test("Test that crew does not die without food for several days", t => {
   prompts.inject(["wait"]);
   gameLoop(
     testingStationState.fold({ food: 0, daysWithoutFood: 3 }),
-    () => {},
-    () => {}
+    noOp,
+    noOp,
   ).then((newState: StationState) => {
     // console.log(newState);
     t.equal(newState.stardate, 1);
@@ -135,8 +135,8 @@ tap.test("Test game over", t => {
   t.rejects(
     gameLoop(
       testingStationState.fold({ crew: 0 }),
-      () => {},
-      () => {}
+      noOp,
+      noOp,
     ).then((newState: StationState) => {})
     );
     t.end();

@@ -2,7 +2,7 @@ import chalk from "chalk";
 import { Choice } from "prompts";
 import { printStationStatus, reduceModuleCrew } from "../game";
 import { ProblemNarrative, StationState } from "../types";
-import { d100 } from "../utils";
+import { d100 } from "../dice";
 
 export const problems: ProblemNarrative[] = [
   {

@@ -1,9 +1,10 @@
 import prompts from "prompts";
 import tap from "tap";
+import { baseStation } from "../src/data/station";
 import { testingStationState } from "../src/data/testStartingState";
 import { vessels } from "../src/data/vessels";
 import { gameLoop } from "../src/game";
-import { VesselDockingStatus } from "../src/types";
+import { noOp, VesselDockingStatus } from "../src/types";
 
 tap.test("Vessel should warp in to being near by", async (t) => {
     const vessel = vessels.find(({ name }) => name === "Big Fred");
@@ -16,8 +17,8 @@ tap.test("Vessel should warp in to being near by", async (t) => {
             vessel.fold({ dockingStatus: VesselDockingStatus.WarpingIn }),
           ],
         }),
-        () => {},
-        () => {}
+        noOp,
+        noOp
       );
       t.equal(
         state.vessels.find(({ name }) => name === "Big Fred")?.dockingStatus,
@@ -43,8 +44,8 @@ tap.test("Vessel should warp in to being near by", async (t) => {
             }),
           ],
         }),
-        () => {},
-        () => {}
+        noOp,
+        noOp
       );
       t.equal(
         state.vessels.find(({ name }) => name === "Big Fred")?.dockingStatus,
@@ -71,8 +72,8 @@ tap.test("Vessel should warp in to being near by", async (t) => {
             }),
           ],
         }),
-        () => {},
-        () => {}
+        noOp,
+        noOp
       );
       t.equal(
         state.vessels.find(({ name }) => name === "Big Fred")?.dockingStatus,
@@ -104,8 +105,8 @@ tap.test("Vessel should warp in to being near by", async (t) => {
             }),
           ],
         }),
-        () => {},
-        () => {}
+        noOp,
+        noOp
       );
       t.equal(
         state.vessels.find(({ name }) => name === "Big Fred")?.dockingStatus,
@@ -136,8 +137,8 @@ tap.test("Vessel should warp in to being near by", async (t) => {
             }),
           ],
         }),
-        () => {},
-        () => {}
+        noOp,
+        noOp
       );
       t.equal(
         state.vessels.find(({ name }) => name === "Big Fred")?.dockingStatus,
@@ -163,8 +164,8 @@ tap.test("Vessel should warp in to being near by", async (t) => {
             }),
           ],
         }),
-        () => {},
-        () => {}
+        noOp,
+        noOp
       );
       t.equal(
         state.vessels.find(({ name }) => name === "Big Fred"),
@@ -191,8 +192,8 @@ tap.test("Vessel should warp in to being near by", async (t) => {
             }),
           ],
         }),
-        () => {},
-        () => {}
+        noOp,
+        noOp
       );
       t.equal(
         state.vessels.find(({ name }) => name === "Big Fred")?.dockingStatus,
@@ -227,8 +228,8 @@ tap.test("Vessel should warp in to being near by", async (t) => {
             })
           ],
         }),
-        () => {},
-        () => {}
+        noOp,
+        noOp
       );
       t.equal(
         state.vessels.find(({ name }) => name === "Big Fred")?.dockingStatus,
@@ -267,8 +268,8 @@ tap.test("Vessel should warp in to being near by", async (t) => {
             })
           ],
         }),
-        () => {},
-        () => {}
+        noOp,
+        noOp
       );
       t.equal(
         state.vessels.find(({ name }) => name === "Big Fred")?.dockingStatus,
@@ -285,3 +286,55 @@ tap.test("Vessel should warp in to being near by", async (t) => {
     }
     t.end();
   });
+
+  tap.test("Spawning Vessels", async (t) => {
+   /* const game = t.mock("utils", {
+      "../src/dice": {
+        d20: () => { return 20; },
+        d100: () => { return 1; },
+        dN: () => { return 1; },
+      }
+    })
+    t.equal(game.spawnVessel(baseStation).name, "Big Fred", "Big Fred should spawn"); */
+    // const game = t.mock("../../../src/game", {})
+  });
+
+  tap.test("Respawning Vessels", async (t) => {
+    const game = t.mock("../src/game", {
+      "../src/dice": {
+        d20: () => { return 1; },
+        d100: () => { return 1; },
+        dN: () => { return 1; },
+      }
+    });
+    prompts.inject(["wait"]);
+
+    const state = await game.gameLoop(testingStationState.fold({
+      stardate: 80,
+      previouslyVisitedVesselNames: [{
+        name: "Big Fred",
+        stardateSinceLastVisited: 1
+      }]
+    }), console.log, noOp);
+    // console.log(state)
+    t.equal(state.previouslyVisitedVesselNames.length, 0, "Big Fred should be allowed to respawn");
+  });
+
+  // tap.test("Previously visited vessels", async (t) => {
+  //   const game = t.mock("../src/game", {
+  //     "../src/dice": {
+  //       d20: () => { return 20; },
+  //       d100: () => { return 1; },
+  //       dN: () => { return 1; },
+  //     }
+  //   })
+  //   const state = await game.gameLoop(baseStation.fold({
+  //     stardate: 6,
+  //     previouslyVisitedVesselNames: [{
+  //       name: "Big Fred",
+  //       stardateSinceLastVisited: 1
+  //     }]
+  //   }), noOp, noOp);
+  //   console.log(state.previouslyVisitedVesselNames)
+  //   t.equal(state.previouslyVisitedVesselNames.length, 0, "Big Fred should be allowed to respawn");
+  // });

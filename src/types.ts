@@ -146,3 +146,5 @@ export type StartingOptions = {
 }
 
 export type Log = (input: string) => void;
+
+export function noOp():void {}

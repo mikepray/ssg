@@ -2,10 +2,14 @@ import chalk from "chalk";
 import tap from "tap";
 import { testingStationState } from "../src/data/testStartingState";
 import { vessels } from "../src/data/vessels";
+import { d20 } from "../src/dice";
 import { printStationStatus } from "../src/game";
 import { Log } from "../src/types";
 import { addWithCeiling, addWithCeilingAndFloor, addWithFloor, getAssignedCrew, getUnassignedCrew, getVesselColor, progressBar, subtractWithFloor } from "../src/utils";
 
+export const mockFunction = () => {
+    console.log('d20 roll was' + d20());
+}
 
 const stationState = testingStationState;
 let logString = '';

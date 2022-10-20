@@ -1,7 +1,7 @@
 import prompts, { Answers } from "prompts";
 import chalk from "chalk";
 import { Log, StationModule, StationMutation, StationState, Vessel, VesselDockingStatus } from "./types";
-import { addWithCeiling, addWithCeilingAndFloor, addWithFloor, calculateStorageCeilings, d100, d20, dN, logWithCeiling as logWithCeiling, getStationDockingPorts, getUnassignedCrew, getVesselColor, isCommandModuleOperational, progressBar, subtractWithFloor } from "./utils";
+import { addWithCeiling, addWithCeilingAndFloor, addWithFloor, calculateStorageCeilings, logWithCeiling as logWithCeiling, getStationDockingPorts, getUnassignedCrew, getVesselColor, isCommandModuleOperational, progressBar, subtractWithFloor } from "./utils";
 import { assignCrewMenu } from "./menus/assignCrewMenu";
 import { dockingMenu } from "./menus/dockingMenu";
 import { moduleMenu } from "./menus/moduleMenu";
@@ -13,6 +13,8 @@ import { problems } from "./data/problems";
 import { policyMenu } from "./menus/policyMenu";
 import { isModuleNamespaceObject } from "util/types";
 import { baseStation } from "./data/station";
+import { d100, d20, dN } from "./dice";
+import { diffieHellman } from "crypto";
 
 export async function gameLoop(stationState: StationState, log: Log, clear: () => void): Promise<StationState> {
     if (stationState.crew === 0) {
@@ -275,8 +277,10 @@ export async function gameLoop(stationState: StationState, log: Log, clear: () =
             return {
                 previouslyVisitedVesselNames: station.previouslyVisitedVesselNames.filter(({name, stardateSinceLastVisited}) => {
                     const vessel = vessels.find(vessel => vessel.name === name);
+                    console.log(`vessel was ${vessel}`);
+                    console.log(vessel && station.stardate < stardateSinceLastVisited + vessel.respawnWait + d20());
                     return vessel && station.stardate < stardateSinceLastVisited + vessel.respawnWait + d20();
-                    
+
                 })
             }
         }).foldAndCombine(station => {
@@ -292,9 +296,17 @@ export async function gameLoop(stationState: StationState, log: Log, clear: () =
                     station.stardate < problem.stardateSinceLastSolved + fullProblem.respawnWait;
                 })
             }
+        }).foldAndCombine(station => {
+            // clear problems out from the problemsSequenceInProgress state if they have reached their last sequence
+            return {
+                problemSequencesInProgress: station.problemSequencesInProgress.filter(problem => {
+                    const fullProblem = problems.find(p => p.name === problem.name);
+                    return fullProblem && problem.indexOfLastSequenceSolved < fullProblem.narrativeSequence.length - 1;
+                })
+            }
         });
          // problems shouldn't happen on the first or second turn (for sanity, and testing)
-        if (stationState.stardate > 1 && d100() < (20)) {
+        if (stationState.stardate > 1 && d100() < 20) {
             stationState = await stationState.foldAndCombineAsync(station => problemMenu(station, log, clear));
         }
     }
@@ -411,7 +423,7 @@ export function printStationStatus(stationState: StationState, log: Log, clear: 
     log(warpSigsString !== '' ? warpSigsString : chalk.gray(' None\n'));
 }
 
-function spawnVessel(stationState: StationState): Vessel | undefined {
+export function spawnVessel(stationState: StationState): Vessel | undefined {
     let vessel: Vessel | undefined = undefined;
     // an increasing chance that a vessel spawns
     if (
